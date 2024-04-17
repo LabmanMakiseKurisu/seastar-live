@@ -25,18 +25,24 @@
 # 依赖安装
 ```
 sudo apt update
+```
+```
 sudo ./scripts/install-dependencies.sh
 ```
-- TODO
 
 # 构建和运行
 首先获取全部子模块
 ```
 git submodule update --init --recursive
 ``` 
-之后编译代码
+之后构建项目
 ```
 mkdir -p build && cd build
+```
+```
 cmake -DCMAKE_BUILD_TYPE=Debug -G Ninja ..
-ninja
+```
+最后编译
+```
+ninja -j4
 ```
