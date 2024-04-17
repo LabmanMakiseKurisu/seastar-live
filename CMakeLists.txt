@@ -25,14 +25,13 @@ set (Seastar_PRIVATE_COMPILE_DEFINITIONS
 
 #添加子模块
 add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/seastar)
-#add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/nlohmann_json)
+add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/nlohmann_json)
 
 #寻找三方库
 #find_package (Seastar REQUIRED)
 
-
 # 添加可执行文件
-file(GLOB_RECURSE SOURCES "src/*.cc") # 收集所有 src 目录下的 .cpp 文件
+file(GLOB_RECURSE SOURCES "src/*.cc") # 收集所有 src 目录下的 .cc 文件
 
 # 创建可执行文件目标
 add_executable(server ${SOURCES})
@@ -40,9 +39,10 @@ add_executable(server ${SOURCES})
 # 为目标添加包含头文件目录
 target_include_directories(server PRIVATE 
   ${CMAKE_SOURCE_DIR}/3rd/seastar/include
-  #${CMAKE_SOURCE_DIR}/3rd/nlohmann_json/single_include
+  ${CMAKE_SOURCE_DIR}/3rd/nlohmann_json/single_include
+  ${CMAKE_SOURCE_DIR}/src
 )
 
-#连接三方库
-target_link_libraries (server PRIVATE Seastar::seastar)
-#target_link_libraries(server PRIVATE nlohmann_json::nlohmann_json)
+#链接三方库
+target_link_libraries(server PRIVATE Seastar::seastar)
+target_link_libraries(server PRIVATE nlohmann_json::nlohmann_json)

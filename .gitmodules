@@ -1,3 +1,6 @@
 [submodule "3rd/seastar"]
 	path = 3rd/seastar
 	url = https://github.com/scylladb/seastar.git
+[submodule "3rd/nlohmann_json"]
+	path = 3rd/nlohmann_json
+	url = https://github.com/nlohmann/json.git
