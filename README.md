@@ -1,11 +1,5 @@
 # 项目名称
 自研流媒体服务器Amadeus
-# 环境需求
-- Ubuntu 22.04 LTS
-- seastar framework https://github.com/scylladb/seastar
-
-# 依赖安装
-- TODO
 
 # 待开发的功能
 - 推流协议支持
@@ -25,6 +19,24 @@
     - 视频：H264、HEVCs、AV1互转（后期考虑AV1）
     - 音频：AAC LC、Opus、MP3互转（后期考虑MP3）
 
-# 构建和运行
-- git submodule update --init --recursive
+# 环境需求
+- Ubuntu 22.04 LTS (require)
+
+# 依赖安装
+```
+sudo apt update
+sudo ./scripts/install-dependencies.sh
+```
 - TODO
+
+# 构建和运行
+首先获取全部子模块
+```
+git submodule update --init --recursive
+``` 
+之后编译代码
+```
+mkdir -p build && cd build
+cmake -DCMAKE_BUILD_TYPE=Debug -G Ninja ..
+ninja
+```

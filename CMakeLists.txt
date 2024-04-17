@@ -19,7 +19,6 @@ set (Seastar_APPS OFF)
 set (Seastar_DOCS OFF)
 set (Seastar_DEMOS OFF)
 set (Seastar_TESTING OFF)
-
 set (Seastar_PRIVATE_COMPILE_DEFINITIONS
   NO_EXCEPTION_INTERCEPT
 )
@@ -38,13 +37,12 @@ file(GLOB_RECURSE SOURCES "src/*.cc") # 收集所有 src 目录下的 .cpp 文�
 # 创建可执行文件目标
 add_executable(server ${SOURCES})
 
-# 为目标添加包含目录
+# 为目标添加包含头文件目录
 target_include_directories(server PRIVATE 
   ${CMAKE_SOURCE_DIR}/3rd/seastar/include
-  ${CMAKE_SOURCE_DIR}/3rd/nlohmann_json/single_include
+  #${CMAKE_SOURCE_DIR}/3rd/nlohmann_json/single_include
 )
 
 #连接三方库
 target_link_libraries (server PRIVATE Seastar::seastar)
-# 链接 nlohmann_json
 #target_link_libraries(server PRIVATE nlohmann_json::nlohmann_json)

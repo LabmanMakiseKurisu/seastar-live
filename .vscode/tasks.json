@@ -6,13 +6,22 @@
             "type": "shell",
             "command": "cmake",
             "args": [
-                "-S", ".",
-                "-B", "build",
+                "-B",
+                "build",
+                "-S",
+                ".",
                 "-DCMAKE_BUILD_TYPE=Debug",
+                "-G",
+                "Ninja",
                 "&&",
-                "cmake", "--build", "build"
+                "ninja",
+                "-C",
+                "build"
             ],
-            "group": "build",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
             "problemMatcher": [
                 "$gcc"
             ],
