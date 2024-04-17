@@ -103,5 +103,10 @@
         "locale": "cpp",
         "queue": "cpp",
         "stack": "cpp"
-    }
+    },
+    "C_Cpp.default.includePath": [
+        "${workspaceFolder}/**",
+        "${workspaceFolder}/3rd/nlohmann_json/single_include/**",
+        "${workspaceFolder}/3rd/seastar/include/**"
+    ]
 }
