@@ -10,16 +10,20 @@
 #include <nlohmann/json.hpp>
 #include <seastar/core/sstring.hh>
 #include <seastar/json/json_elements.hh>
-#include "seastar/core/sstring.hh"
+
 namespace amadeus {
 
-using namespace seastar;
+//using namespace seastar;
 
 class Ielement {
- public:
-  sstring _name;  // 名称
-  virtual ~Ielement() = default;
-  virtual void draw() = 0;
+public:
+    seastar::sstring _name;  // 名称
+
+public:
+    virtual void from_seastar_json(seastar::json::json_base_element *e) = 0;
+    virtual void to_seastar_json(seastar::json::json_base_element *e) = 0;
+    virtual void from_nlohmann_json(const nlohmann::json &j) = 0;
+    virtual void to_nlohmann_json(nlohmann::json &j) = 0;
 };
 
 }  // namespace amadeus

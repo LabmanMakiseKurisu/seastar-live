@@ -35,14 +35,23 @@ sudo ./scripts/install-dependencies.sh
 ```
 git submodule update --init --recursive
 ``` 
-之后构建项目
+安装seastar
+```
+cd 3rd/seastar
+mkdir -p build && cd build
+./configure.py --mode=release --prefix=/usr/local
+ninja -C build/release install
+```
+安装nlohmann_json
+```
+cd 3rd/nlohmann_json
+mkdir -p build && cd build
+cmake ..
+make install
+```
+最后构建和编译
 ```
 mkdir -p build && cd build
-```
-```
 cmake -DCMAKE_BUILD_TYPE=Debug -G Ninja ..
-```
-最后编译
-```
 ninja -j4
 ```
