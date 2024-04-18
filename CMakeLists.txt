@@ -39,7 +39,8 @@ add_executable(server ${SOURCES})
 
 # 为目标添加包含头文件目录
 target_include_directories(server PRIVATE 
-  ${CMAKE_SOURCE_DIR}/src
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/
+  ${CMAKE_CURRENT_SOURCE_DIR}/src/app/
 )
 
 # 链接三方库
