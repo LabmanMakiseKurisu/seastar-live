@@ -6,7 +6,9 @@
         "type": "cppdbg",
         "request": "launch",
         "program": "${workspaceFolder}/build/release/server",
-        "args": [],
+        "args": [
+          // "--json", "/1.json"
+        ],
         "stopAtEntry": false,
         "cwd": "${workspaceFolder}/build/release",
         "environment": [],

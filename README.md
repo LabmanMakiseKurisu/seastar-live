@@ -1,3 +1,11 @@
+<!--
+ * @Author: Amadeus
+ * @Date: 2024-04-19 11:43:06
+ * @LastEditors: Amadeus
+ * @LastEditTime: 2024-04-19 17:12:17
+ * @FilePath: /Amadeus/README.md
+ * @Description: 
+-->
 # 项目名称
 自研流媒体服务器Amadeus
 
@@ -20,7 +28,7 @@
     - 音频：AAC LC、Opus、MP3互转（后期考虑MP3）
 
 # 环境需求
-- Ubuntu 22.04 LTS (require)
+- Ubuntu 22.04 LTS (necessary)
 
 # 依赖安装
 ```
@@ -35,14 +43,14 @@ sudo ./scripts/install-dependencies.sh
 ```
 git submodule update --init --recursive
 ``` 
-安装seastar
+安装seastar (not necessary)
 ```
 cd 3rd/seastar
 mkdir -p build && cd build
 ./configure.py --mode=release --prefix=/usr/local
 ninja -C build/release install
 ```
-安装nlohmann_json
+安装nlohmann_json (not necessary)
 ```
 cd 3rd/nlohmann_json
 mkdir -p build && cd build

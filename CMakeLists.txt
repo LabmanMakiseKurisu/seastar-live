@@ -64,4 +64,3 @@ else()
   target_include_directories(server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/3rd/nlohmann_json/nlohmann)
   target_link_libraries(server PRIVATE nlohmann_json)
 endif()
-
