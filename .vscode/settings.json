@@ -1,6 +1,8 @@
 {
     "editor.formatOnSave": false,
     "files.associations": {
+        "*.c": "c",
+        "*.hh": "cpp",
         "cctype": "cpp",
         "clocale": "cpp",
         "cmath": "cpp",
@@ -82,7 +84,6 @@
         "valarray": "cpp",
         "variant": "cpp",
         "*.ipp": "cpp",
-        "*.hh": "cpp",
         "*.cc": "cpp",
         "*.hpp": "cpp",
         "*.cpp": "cpp",
@@ -102,6 +103,7 @@
         "ios": "cpp",
         "locale": "cpp",
         "queue": "cpp",
-        "stack": "cpp"
+        "stack": "cpp",
+        "bitstream.h": "c"
     }
 }

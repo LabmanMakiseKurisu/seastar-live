@@ -8,6 +8,7 @@
         "program": "${workspaceFolder}/build/release/server",
         "args": [
           // "--json", "/1.json"
+          "-c", "2"
         ],
         "stopAtEntry": false,
         "cwd": "${workspaceFolder}/build/release",

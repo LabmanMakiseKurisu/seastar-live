@@ -20,26 +20,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/release)
 
-# 尝试寻找本地安装的Seastar
-find_package(Seastar QUIET)
-
-if(Seastar_FOUND)
-  message(STATUS "Using system-installed Seastar")
-else()
-  message(STATUS "Seastar not found in system, using submodule")
-  add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/seastar)
-endif()
-
-# 尝试寻找本地安装的nlohmann_json
-find_package(nlohmann_json QUIET)
-
-if(nlohmann_json_FOUND)
-  message(STATUS "Using system-installed nlohmann_json")
-else()
-  message(STATUS "nlohmann_json not found in system, using submodule")
-  add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/nlohmann_json)
-endif()
-
+add_subdirectory (${CMAKE_SOURCE_DIR}/3rd)
 
 # 添加可执行文件
 file(GLOB_RECURSE SOURCES "src/*.cc") # 收集所有src目录下的.cc文件
@@ -64,3 +45,18 @@ else()
   target_include_directories(server PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/3rd/nlohmann_json/nlohmann)
   target_link_libraries(server PRIVATE nlohmann_json)
 endif()
+
+
+target_include_directories (server 
+  PUBLIC 
+    ${LIBFLV_INCLUDE_DIR}
+    ${LIBRTMP_INCLUDE_DIR}
+    ${LIBFMP4_INCLUDES_DIR}
+)
+
+target_link_libraries (server 
+  PUBLIC 
+    flv
+    rtmp
+    fmp4
+)

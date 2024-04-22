@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-17 16:56:42
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-19 18:09:30
+ * @LastEditTime: 2024-04-19 18:55:01
  * @FilePath: /Amadeus/work_list.md
  * @Description: 
 -->
@@ -25,3 +25,5 @@
     - `global_settings`由多个`element`类组成，每个`element`类对应一个配置项，具备和`boost::program_option`、json互转的功能。
     - `global_settings`类管理所有的`element`类，提供全局的配置读取接口。
     - json配置文件的绝对路径由命令行给出
+
+## 日志模块

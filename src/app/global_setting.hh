@@ -1,3 +1,11 @@
+/*
+ * @Author: Amadeus
+ * @Date: 2024-04-19 11:43:06
+ * @LastEditors: Amadeus
+ * @LastEditTime: 2024-04-22 19:22:32
+ * @FilePath: /Amadeus/src/app/global_setting.hh
+ * @Description: 
+ */
 #pragma once
 #include <seastar/core/app-template.hh>
 
@@ -26,7 +34,8 @@ class global_settings {
         element<float>("rtmp-max-gop-duration", 60.f, "Maximum durtion(s) of RTMP GOP");
     element<float> rtmp_max_gop_bytes =
         element<float>("rtmp-max-gop-bytes", 300 * 1024 * 1024, "Maximum bytes of RTMP GOP");
-
+    element<float> stream_timeout_interval =
+        element<float>("stream-timeout-interval", 10.f, "Timeout interval(s) for each stream");
  public:
     static global_settings global;
     static void setup_app_options(app_template &app);
