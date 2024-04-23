@@ -1,3 +1,11 @@
+/*
+ * @Author: Amadeus
+ * @Date: 2024-04-22 16:00:01
+ * @LastEditors: Amadeus
+ * @LastEditTime: 2024-04-23 15:32:39
+ * @FilePath: /Amadeus/src/util/stop_signal.hh
+ * @Description: 
+ */
 #pragma once
 
 #include <seastar/core/condition-variable.hh>
@@ -7,7 +15,7 @@
 /// Seastar apps lib namespace
 
 namespace seastar_apps_lib {
-
+using namespace seastar;
 /// \brief Futurized SIGINT/SIGTERM signals handler class
 ///
 /// Seastar-style helper class that allows easy waiting for SIGINT/SIGTERM signals

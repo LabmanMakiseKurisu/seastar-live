@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 11:43:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-22 19:22:32
+ * @LastEditTime: 2024-04-23 15:30:41
  * @FilePath: /Amadeus/src/app/global_setting.hh
  * @Description: 
  */
@@ -36,6 +36,13 @@ class global_settings {
         element<float>("rtmp-max-gop-bytes", 300 * 1024 * 1024, "Maximum bytes of RTMP GOP");
     element<float> stream_timeout_interval =
         element<float>("stream-timeout-interval", 10.f, "Timeout interval(s) for each stream");
+    element<uint64_t> max_bytes_per_box =
+        element<uint64_t>("max-bytes-per-box", 2 * 1024 * 1024, "Maximum bytes limit for per box");
+    element<bool> frame_trace_enabled = element<bool>("frame-trace-enabled", true, "Enable frame trace log");
+    element<sstring> auto_stop_publish_mode = element<sstring>(
+        "auto-stop-publish-mode",
+        "internal",
+        "Mode(user, internal, all, none) to stop publish sessions after all play(user-mode) session stopped");
  public:
     static global_settings global;
     static void setup_app_options(app_template &app);

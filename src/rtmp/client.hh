@@ -24,6 +24,8 @@
 #include <rtmp-client.h>
 #include <seastar/core/condition-variable.hh>
 #include <seastar/core/iostream.hh>
+#include <seastar/core/shared_future.hh>
+#include <seastar/core/shared_mutex.hh>
 #include <seastar/net/api.hh>
 
 #include "rtmp/reply.hh"
@@ -58,6 +60,20 @@ class client_ref {
     client* get() {
         return _c;
     }
+};
+
+class connection_factory {
+ public:
+    /**
+     * \brief Make a \ref connected_socket
+     *
+     * The implementations of this method should return ready-to-use socket that will
+     * be used by \ref client as transport for its http connections
+     */
+    virtual future<connected_socket> make() = 0;
+    virtual socket_address remote_address() const = 0;
+
+    virtual ~connection_factory() {}
 };
 
 /**
@@ -97,7 +113,10 @@ class client {
         std::optional<seastar::promise<reply_ptr>> _handshake;
 
         std::deque<packet> _media_input_cache;
+        shared_mutex _flush_in_lock;
+
         std::deque<temporary_buffer<char>> _data_output_cache;
+        shared_mutex _flush_out_lock;
 
         seastar::queue<packet> _media_input;
         seastar::queue<packet> _media_output;
@@ -165,15 +184,14 @@ class client {
 
         future<> stop_once();
         future<> close_streams();
+        future<> stop_streams();
 
-        void abort(int code);
-        void abort(std::exception e);
-        void abort(std::exception_ptr e);
+        void abort(int code) noexcept;
+        void abort(const std::exception_ptr& e) noexcept;
 
-        void on_handshake(std::exception e);
-        void on_handshake(std::exception_ptr e);
-        void on_handshake(std::nullptr_t n);
-        void on_handshake(reply_ptr rep);
+        void on_handshake(const std::exception_ptr& e) noexcept;
+        void on_handshake(std::nullptr_t) noexcept;
+        void on_handshake(reply_ptr rep) noexcept;
 
         future<> on_read_packets(std::deque<packet> pkts);
         future<> on_write_buffers(std::deque<temporary_buffer<char>> bufs);
@@ -202,10 +220,10 @@ class client {
 
     static constexpr unsigned default_max_connections = 100;
 
-    socket_address _address;
     uint64_t _recv_bytes = 0;
     uint64_t _send_bytes = 0;
 
+    std::unique_ptr<connection_factory> _new_connections;
     unsigned _total_connections = 0;
     unsigned _max_connections;
     condition_variable _not_full;
@@ -222,6 +240,17 @@ class client {
 
  public:
     /**
+     * \brief Construct a simple client
+     *
+     * This creates a simple client that connects to provided address via plain
+     * socket
+     *
+     * \param addr -- host address to connect to
+     *
+     */
+    explicit client(socket_address addr);
+
+    /**
      * \brief Construct a client with connection factory
      *
      * This creates a client that uses factory to get \ref connected_socket that is then
@@ -231,7 +260,7 @@ class client {
      * \param f -- the factory pointer
      *
      */
-    explicit client(socket_address addr, unsigned max_connections = default_max_connections);
+    explicit client(std::unique_ptr<connection_factory> f, unsigned max_connections = default_max_connections);
 
     /**
      * \brief Send the request and handle the response
@@ -285,14 +314,43 @@ class client {
 
 future<> ignore_reply(const request& req, const reply& rep, input_stream& in);
 
+class dns_connection_factory : public internal::connection_factory {
+ public:
+    dns_connection_factory(const sstring& host, int port, float timeout = -1);
+
+    virtual future<connected_socket> make() override;
+    virtual socket_address remote_address() const override;
+
+ protected:
+    sstring _host;
+    int _port;
+    float _timeout;
+
+    struct state {
+        bool initialized = false;
+        socket_address addr;
+    };
+
+    lw_shared_ptr<state> _state;
+    shared_future<> _done;
+
+    future<> initialize();
+};
+
 class client : public enable_shared_from_this<client> {
  public:
-    client(socket_address address);
-    client(const sstring& address);
+    client(socket_address sa, float timeout = -1);
+    client(const sstring& address, float timeout = -1);
+    client(const sstring& host, uint32_t port, float timeout = -1);
+
     virtual ~client();
 
-    const socket_address& address() {
-        return _address;
+    sstring host() const {
+        return _host;
+    }
+
+    int port() const {
+        return _port;
     }
 
     const std::unordered_map<scheduling_group, internal::client>& all_clients() {
@@ -306,9 +364,14 @@ class client : public enable_shared_from_this<client> {
     future<> close();
 
  private:
+    client(const std::tuple<sstring, uint32_t> address_parts, float timeout = -1);
+
     void for_each_client(std::function<void(internal::client&)> func);
 
-    socket_address _address;
+    sstring _host;
+    uint32_t _port;
+
+    float _timeout;
 
     std::mutex _lock;
     std::unordered_map<scheduling_group, internal::client> _clients;

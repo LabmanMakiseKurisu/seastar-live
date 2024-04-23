@@ -1,7 +1,9 @@
 #pragma once
-
-#include "session/rtmp/subscriber.hh"
+#include "flv/flv.hh"
+#include "rtmp/packet.hh"
+#include "rtmp/stream.hh"
 #include "session/publish_session.hh"
+#include "session/rtmp/subscriber.hh"
 
 namespace amadeus {
 namespace rtmp {
@@ -14,7 +16,6 @@ using media_ptr = std::shared_ptr<flv::media_t>;
 using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
 using rtmp_frame_gop_queue_t = gop_queue_t<frame_ptr>;
-
 
 class publish_session : public session_ns::publish_session {
  public:
@@ -42,8 +43,6 @@ class publish_session : public session_ns::publish_session {
 
     virtual void add_rtmp_subscriber(subscriber_ptr subscriber);
     virtual void remove_rtmp_subscriber(subscriber_ptr subscriber);
-
-    virtual std::unique_ptr<api::v1::session_info> information() const override;
 
     virtual float delay() const override {
         return _rtmp_cache.duration();
@@ -85,25 +84,13 @@ class publish_session : public session_ns::publish_session {
     void on_frame(frame_ptr frame);
     void rectify_dts(frame_ptr frame);
 
-    // BMT
-    future<> publish_bmt_frame(pipe_state &st, frame_ptr frame);
-
-    void publish_bmt_bhin(pipe_state &st);
-    void publish_bmt_ftyp();
-    future<> publish_bmt_moov(pipe_state &st, metadata_ptr metadata);
-    future<> publish_bmt_media(pipe_state &st, media_ptr media);
-
  private:
     int64_t _last_actual_dts = -1; // ms
     int64_t _last_end_dts = -1;    // ms
 
-    bmt_muxer_t *_muxer = nullptr;
-
     rtmp_frame_gop_queue_t _rtmp_cache;
 
     std::vector<std::shared_ptr<subscriber_item>> _subscribers;
-
-    int _bmt_version = BMT_PROTOCOL_VERSION_V1;
 };
 
 namespace svr {
@@ -180,8 +167,6 @@ class publish_session : public rtmp::session::publish_session,
     virtual void start() override;
 
     virtual future<> start_with(input_stream &in) override;
-
-    virtual std::unique_ptr<api::v1::session_info> information() const override;
 
  protected:
     virtual future<> try_once(int times, int total_times) override;

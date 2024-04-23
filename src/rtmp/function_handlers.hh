@@ -1,4 +1,12 @@
 /*
+ * @Author: Amadeus
+ * @Date: 2024-04-23 10:51:20
+ * @LastEditors: Amadeus
+ * @LastEditTime: 2024-04-23 14:25:48
+ * @FilePath: /Amadeus/src/rtmp/function_handlers.hh
+ * @Description: 
+ */
+/*
  * This file is open source software, licensed to you under the terms
  * of the Apache License, Version 2.0 (the "License").  See the NOTICE file
  * distributed with this work for additional information regarding copyright
@@ -27,8 +35,7 @@
 
 #include "rtmp/handlers.hh"
 
-namespace com {
-namespace bilibili {
+namespace amadeus {
 namespace rtmp {
 
 using namespace seastar;
@@ -86,5 +93,4 @@ class function_handler : public handler_base {
 };
 
 } // namespace rtmp
-} // namespace bilibili
-} // namespace com
+} // namespace amadeus

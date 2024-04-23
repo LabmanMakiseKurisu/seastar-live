@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 10:51:20
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 10:51:54
+ * @LastEditTime: 2024-04-23 14:27:41
  * @FilePath: /Amadeus/src/rtmp/packet.hh
  * @Description:
  */
@@ -71,6 +71,5 @@ to_media_type(packet::type_t type) {
         default: return media_type_t::none;
     }
 }
-
 } // namespace rtmp
 } // namespace amadeus

@@ -80,6 +80,16 @@ audio_media_t::to_string() const {
         _data.size());
 }
 
+video_media_t::video_media_t(int keyframe, uint64_t cts, uint64_t dts, temporary_buffer<uint8_t> data)
+: video_media_t(keyframe == 1, cts, dts, std::move(data)) {}
+
+video_media_t::video_media_t(bool is_keyframe, uint64_t cts, uint64_t dts, temporary_buffer<uint8_t> data) {
+    _is_video = true;
+    _is_keyframe = is_keyframe;
+    _data = std::move(data);
+    _dts = dts;
+    _cts = cts;
+}
 
 temporary_buffer<uint8_t>
 video_media_t::tag_header(metadata_t *metadata) const {

@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 13:40:07
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-22 19:23:10
+ * @LastEditTime: 2024-04-23 15:30:54
  * @FilePath: /Amadeus/src/app/global_setting.cc
  * @Description:
  */
@@ -61,6 +61,9 @@ global_settings::Register() {
     Register_element(&rtmp_max_gop_duration);
     Register_element(&rtmp_max_gop_bytes);
     Register_element(&stream_timeout_interval);
+    Register_element(&max_bytes_per_box);
+    Register_element(&frame_trace_enabled);
+    Register_element(&auto_stop_publish_mode);
 }
 
 void

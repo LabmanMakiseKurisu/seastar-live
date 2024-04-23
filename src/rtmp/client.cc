@@ -1,8 +1,8 @@
 /*
  * This file is open source software, licensed to you under the terms
- * of the Apache License, Version 2.0 (the "License").  See the NOTICE file
+ * of the Apache License, Vepubion 2.0 (the "License").  See the NOTICE file
  * distributed with this work for additional information regarding copyright
- * ownership.  You may not use this file except in compliance with the License.
+ * ownepubhip.  You may not use this file except in compliance with the License.
  *
  * You may obtain a copy of the License at
  *
@@ -16,7 +16,7 @@
  * under the License.
  */
 /*
- * Copyright (C) 2022 Scylladb, Ltd.
+ * Copyright 2023 bilibili
  */
 
 #include "rtmp/client.hh"
@@ -25,18 +25,21 @@
 #include <seastar/core/reactor.hh>
 #include <seastar/core/temporary_buffer.hh>
 #include <seastar/core/when_all.hh>
+#include <seastar/core/with_timeout.hh>
 #include <seastar/http/internal/content_source.hh>
+#include <seastar/net/dns.hh>
 #include <seastar/net/tls.hh>
 #include <seastar/util/short_streams.hh>
 #include <seastar/util/string_utils.hh>
 
+#include"rtmp/data_sink.hh"
 #include "rtmp-internal.h"
 #include "rtmp/exception.hh"
 #include "rtmp/log.hh"
 #include "rtmp/reply.hh"
 #include "rtmp/request.hh"
 #include "util/util.hh"
-#include "rtmp/data_sink.hh"
+
 namespace amadeus {
 namespace rtmp {
 namespace internal {
@@ -80,7 +83,7 @@ client::connection::~connection() {
     if (_rtmp_cln) ::rtmp_client_destroy(_rtmp_cln);
     _rtmp_cln = nullptr;
 
-    l.debug("connection desctruct {}", _ref.get()->_address);
+    l.debug("connection desctruct {}", _ref.get()->_new_connections->remote_address());
 }
 
 void
@@ -129,13 +132,12 @@ future<reply_ptr>
 client::connection::send_request(request& req) {
     assert(_rtmp_cln);
 
-    l.trace("rtmp client start {}", req);
-
     int rt = ::rtmp_client_start(_rtmp_cln, static_cast<int>(req._mode));
     if (rt != 0) return make_exception_future<reply_ptr>(bad_request_exception("failed to start RTMP client"));
 
+    l.trace("rtmp client connection start {}", req);
+    _handshake = std::make_optional(seastar::promise<reply_ptr>());
     return flush_out().then([this] {
-        _handshake = std::make_optional(seastar::promise<reply_ptr>());
         return _handshake->get_future();
     });
 }
@@ -170,36 +172,46 @@ client::connection::make_request(request req, reply_handler handle, reply::statu
                std::move(req),
                std::move(handle),
                [expected, this](request& req, reply_handler& handle) {
-                   return send_request(req).then([&req, &handle, expected, this](reply_ptr rep) mutable {
-                       if (!rep) {
-                           l.trace("failed to handshake {}", req);
-                           return make_exception_future<>(unexpected_status_error(reply::status_type::internal_error));
+                   return send_request(req).then_wrapped([&req, &handle, expected, this](auto f) mutable {
+                       if (f.failed()) {
+                           auto e = f.get_exception();
+                           l.trace("failed to handshake {}", e);
+                           return make_exception_future<>(e);
+                       } else {
+                           auto rep = f.get0();
+                           if (!rep) {
+                               l.trace("failed to handshake {}", req);
+                               return make_exception_future<>(
+                                   unexpected_status_error(reply::status_type::internal_error));
+                           }
+                           l.trace("handshake successfully {}", req);
+                           if (rep->_status != expected) {
+                               if (l.is_enabled(log_level::debug)) l.debug("request finished with {}", rep->_status);
+                               return make_exception_future<>(unexpected_status_error(rep->_status));
+                           }
+                           rep->_read_bytes_provider = [this] {
+                               return _recv_bytes;
+                           };
+                           rep->_write_bytes_provider = [this] {
+                               return _send_bytes;
+                           };
+                           return do_with(std::move(rep), [&req, &handle, this](reply_ptr& rep) {
+                               auto& _rep = *rep;
+                               return maybe_write_body(req)
+                                   .then([&req, &_rep, &handle, this] {
+                                       return maybe_read_body(req, _rep, std::move(handle));
+                                   })
+                                   .finally([&req, rep = std::move(rep)] {
+                                       l.trace("request complete {}", req);
+                                   });
+                           });
                        }
-                       l.trace("handshake successfully {}", req);
-                       if (rep->_status != expected) {
-                           if (l.is_enabled(log_level::debug)) l.debug("request finished with {}", rep->_status);
-                           return make_exception_future<>(unexpected_status_error(rep->_status));
-                       }
-                       rep->_read_bytes_provider = [this] {
-                           return _recv_bytes;
-                       };
-                       rep->_write_bytes_provider = [this] {
-                           return _send_bytes;
-                       };
-                       return do_with(std::move(rep), [&req, &handle, this](reply_ptr& rep) {
-                           auto& _rep = *rep;
-                           return maybe_write_body(req)
-                               .then([&req, &_rep, &handle, this] {
-                                   return maybe_read_body(req, _rep, std::move(handle));
-                               })
-                               .finally([&req, rep = std::move(rep)] {
-                                   l.trace("request complete {}", req);
-                               });
-                       });
                    });
                })
         .finally([this] {
-            return close_streams().handle_exception([this](auto e) {});
+            return stop_streams().handle_exception([this](auto e) {
+                l.trace("ignored exception {}", e);
+            });
         });
 }
 
@@ -208,22 +220,28 @@ client::connection::on_read_packets(std::deque<packet> pkts) {
     if (pkts.empty()) return make_ready_future<>();
 
     return do_with(std::move(pkts), [this](std::deque<packet>& pkts) {
-        return do_for_each(pkts, [this](packet& pkt) {
-            return _media_input.push_eventually(std::move(pkt));
+        return with_lock(_flush_in_lock, [&pkts, this] {
+            return do_for_each(pkts, [this](packet& pkt) {
+                return _media_input.push_eventually(std::move(pkt));
+            });
         });
     });
 }
 
 future<>
 client::connection::on_write_buffers(std::deque<temporary_buffer<char>> bufs) {
-    if (_done || bufs.empty()) return make_ready_future<>();
+    if (bufs.empty()) return make_ready_future<>();
+    if (_done) {
+        l.trace("ignored write buffer for done");
+        return make_ready_future<>();
+    }
 
     return do_with(std::move(bufs), [this](std::deque<temporary_buffer<char>>& bufs) {
-        return do_for_each(bufs, [this](temporary_buffer<char>& buf) {
-            if (_done) return make_ready_future<>();
-            return _write_buf.write(std::move(buf)).then([this] {
-                if (_done) return make_ready_future<>();
-                return _write_buf.flush();
+        return with_lock(_flush_out_lock, [&bufs, this] {
+            return do_for_each(bufs, [this](temporary_buffer<char>& buf) {
+                return _write_buf.write(std::move(buf)).then([this] {
+                    return _write_buf.flush();
+                });
             });
         });
     });
@@ -282,28 +300,18 @@ client::connection::on_send_packet(packet pkt) {
 }
 
 void
-client::connection::abort(int code) {
-    abort(std::system_error(code, std::system_category()));
+client::connection::abort(int code) noexcept {
+    abort(std::make_exception_ptr(std::system_error(code, std::system_category())));
 }
 
 void
-client::connection::abort(std::exception e) {
-    abort(std::make_exception_ptr(e));
-}
-
-void
-client::connection::abort(std::exception_ptr e) {
+client::connection::abort(const std::exception_ptr& e) noexcept {
     _media_input.abort(e);
     _media_output.abort(e);
 }
 
 void
-client::connection::on_handshake(std::exception e) {
-    on_handshake(std::make_exception_ptr(e));
-}
-
-void
-client::connection::on_handshake(std::exception_ptr e) {
+client::connection::on_handshake(const std::exception_ptr& e) noexcept {
     if (_handshake != std::nullopt) {
         _handshake->set_exception(e);
         _handshake = std::nullopt;
@@ -311,7 +319,7 @@ client::connection::on_handshake(std::exception_ptr e) {
 }
 
 void
-client::connection::on_handshake(std::nullptr_t n) {
+client::connection::on_handshake(std::nullptr_t) noexcept {
     if (_handshake != std::nullopt) {
         _handshake->set_value(nullptr);
         _handshake = std::nullopt;
@@ -319,7 +327,7 @@ client::connection::on_handshake(std::nullptr_t n) {
 }
 
 void
-client::connection::on_handshake(reply_ptr rep) {
+client::connection::on_handshake(reply_ptr rep) noexcept {
     if (_handshake != std::nullopt) {
         _handshake->set_value(std::move(rep));
         _handshake = std::nullopt;
@@ -345,10 +353,12 @@ client::connection::input_loop() {
                                        done = true;
                                        on_handshake(nullptr);
                                        abort(ENOTCONN);
+                                       l.trace("recv empty data");
                                        return _read_buf.close();
                                    } else {
                                        return on_read_buf(std::move(buf)).then([&done, this] {
                                            return flush().handle_exception([&done, this](auto e) {
+                                               l.trace("ignored exception {}", e);
                                                done = true;
                                            });
                                        });
@@ -360,20 +370,28 @@ client::connection::input_loop() {
                                    done = true;
                                    on_handshake(nullptr);
                                    abort(f.get_exception());
-                                   return close_streams().handle_exception([](auto e) {});
+                                   return stop_streams().handle_exception([](auto e) {
+                                       l.trace("ignored exception {}", e);
+                                   });
                                } else {
                                    f.ignore_ready_future();
                                    if (!done) return make_ready_future();
 
-                                   return close_streams().handle_exception([this](auto e) {
+                                   return stop_streams().handle_exception([this](auto e) {
                                        abort(e);
                                        return make_ready_future();
                                    });
                                };
                            });
                    })
-            .finally([] {
+            .finally([this] {
                 l.trace("tcp read complete");
+
+                on_handshake(nullptr);
+                abort(ENOTCONN);
+                return close_streams().handle_exception([](auto e) {
+                    l.trace("ignored exception {}", e);
+                });
             })
             .handle_exception([&done, this](auto e) {
                 assert(0);
@@ -421,12 +439,12 @@ client::connection::output_loop() {
                                    done = true;
                                    on_handshake(nullptr);
                                    abort(f.get_exception());
-                                   return close_streams().handle_exception([](auto e) {});
+                                   return stop_streams().handle_exception([](auto e) {});
                                } else {
                                    f.ignore_ready_future();
                                    if (!done) return make_ready_future();
 
-                                   return close_streams().handle_exception([this](auto e) {
+                                   return stop_streams().handle_exception([this](auto e) {
                                        abort(e);
                                        return make_ready_future();
                                    });
@@ -449,21 +467,22 @@ client::connection::process(request req, reply_handler handle, reply::status_typ
     return when_all_succeed(make_request(std::move(req), std::move(handle), expected), input_loop(), output_loop())
         .discard_result()
         .finally([this] {
-            return when_all_succeed(_read_buf.close(), _write_buf.close())
-                .discard_result()
-                .handle_exception([](auto e) {});
+            return when_all_succeed(_read_buf.close(), _write_buf.close()).discard_result();
         });
 }
 
 future<>
 client::connection::close_streams() {
-    return stop_once()
-        .then([this] {
-            return _input.close();
-        })
-        .then([this] {
-            return _output.close();
-        });
+    return _input.close().then([this] {
+        return _output.close();
+    });
+}
+
+future<>
+client::connection::stop_streams() {
+    return stop_once().then([this] {
+        return close_streams();
+    });
 }
 
 future<>
@@ -474,7 +493,7 @@ client::connection::update_state() {
         on_handshake(std::move(resp));
     } else if (st == rtmp_state_t::RTMP_STATE_STOP) {
         _stopped = true;
-        return close_streams();
+        return stop_streams();
     }
     return make_ready_future<>();
 }
@@ -491,7 +510,7 @@ client::connection::stop_once() {
         int rt = ::rtmp_client_stop(_rtmp_cln);
         if (rt < 0) return make_exception_future<>(bad_request_exception("failed to stop RTMP client"));
 
-        l.trace("rtmp client stop");
+        l.trace("rtmp client connection stop");
 
         _stopped = true;
         _done = true;
@@ -509,7 +528,9 @@ client::connection::close() {
         .then([this] {
             return std::move(_closed);
         })
-        .handle_exception([](auto e) {});
+        .handle_exception([](auto e) {
+            l.trace("ignored exception {}", e);
+        });
 }
 
 void
@@ -558,8 +579,27 @@ client::connection::rtmp_handler_onaudio(void* param, const void* payload, size_
     return 0;
 }
 
-client::client(socket_address addr, unsigned max_connections)
-: _address(addr)
+class basic_connection_factory : public connection_factory {
+    socket_address _addr;
+
+ public:
+    explicit basic_connection_factory(socket_address addr)
+    : _addr(std::move(addr)) {}
+
+    virtual socket_address remote_address() const override {
+        return _addr;
+    }
+
+    virtual future<connected_socket> make() override {
+        return seastar::connect(_addr, {}, transport::TCP);
+    }
+};
+
+client::client(socket_address addr)
+: client(std::make_unique<basic_connection_factory>(std::move(addr))) {}
+
+client::client(std::unique_ptr<connection_factory> f, unsigned max_connections)
+: _new_connections(std::move(f))
 , _max_connections(max_connections) {}
 
 uint64_t
@@ -579,7 +619,8 @@ client::get_connection() {
             return get_connection();
         });
     }
-    return seastar::connect(_address, {}, transport::TCP).then([cr = client_ref(this)](connected_socket cs) mutable {
+
+    return _new_connections->make().then([cr = client_ref(this)](connected_socket cs) mutable {
         l.trace("created new tcp connection {}", cs.local_address());
         auto conn = seastar::make_shared<connection>(std::move(cs), std::move(cr));
         return make_ready_future<connection_ptr>(std::move(conn));
@@ -675,12 +716,58 @@ ignore_reply(const request& req, const reply& rep, input_stream& in) {
     return make_ready_future<>();
 }
 
-client::client(const sstring& address)
-: client(ipv4_addr(address)) {}
+dns_connection_factory::dns_connection_factory(const sstring& host, int port, float timeout)
+: _host(std::move(host))
+, _port(port)
+, _timeout(timeout)
+, _state(make_lw_shared<state>())
+, _done(initialize()) {}
 
-client::client(socket_address address)
-: _address(address) {
+future<>
+dns_connection_factory::initialize() {
+    auto state = _state;
+    return seastar::net::dns::get_host_by_name(_host, seastar::net::inet_address::family::INET)
+        .then([state, port = _port](seastar::net::hostent hent) mutable {
+            state->addr = socket_address(hent.addr_list.front(), port);
+        })
+        .then([state] {
+            state->initialized = true;
+            return make_ready_future<>();
+        });
+}
 
+socket_address
+dns_connection_factory::remote_address() const {
+    return _state->addr.length() ? _state->addr : socket_address();
+}
+
+future<connected_socket>
+dns_connection_factory::make() {
+    auto f = make_ready_future<>();
+    if (!_state->initialized) f = _done.get_future();
+
+    return f.then([state = _state, host = _host, timeout = _timeout] {
+        auto f = seastar::connect(state->addr, {}, transport::TCP);
+        if (timeout == -1) return f;
+
+        auto tp = std::chrono::steady_clock::now() + std::chrono::milliseconds(static_cast<int64_t>(timeout * 1000));
+        return with_timeout(tp, std::move(f));
+    });
+}
+
+client::client(socket_address sa, float timeout)
+: client(std::make_tuple(seastar::to_sstring(sa.addr()), ntohl(sa.u.in.sin_port)), timeout) {}
+
+client::client(const sstring& address, float timeout)
+: client(util::split_address(address), timeout) {}
+
+client::client(const sstring& host, uint32_t port, float timeout)
+: client(std::make_tuple(host, port), timeout) {}
+
+client::client(std::tuple<sstring, uint32_t> address_parts, float timeout)
+: _host(std::get<0>(address_parts))
+, _port(std::get<1>(address_parts))
+, _timeout(timeout) {
 }
 
 client::~client() {}
@@ -699,6 +786,10 @@ client::make_request(request req, internal::reply_handler handle, reply::status_
     _lock.lock();
     auto it = _clients.find(sg);
     if (it == _clients.end()) [[unlikely]] {
+        assert(_host.size());
+        if (_host.empty()) return make_exception_future<>(bad_request_exception("host is empty"));
+
+        auto factory = std::make_unique<dns_connection_factory>(_host, _port ?: 1935, _timeout);
         // Limit the maximum number of connections this group's http client
         // may have proportional to its shares. Shares are typically in the
         // range of 100...1000, thus resulting in 1..10 connections
@@ -707,13 +798,13 @@ client::make_request(request req, internal::reply_handler handle, reply::status_
                  .emplace(
                      std::piecewise_construct,
                      std::forward_as_tuple(sg),
-                     std::forward_as_tuple(_address, max_connections))
+                     std::forward_as_tuple(std::move(factory), max_connections))
                  .first;
     }
     auto& cln = it->second;
     _lock.unlock();
 
-    l.debug("make request {}", req);
+    l.info("make request {}", req);
     return cln.make_request(std::move(req), std::move(handle), expected);
 }
 
