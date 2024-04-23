@@ -1,0 +1,53 @@
+
+#pragma once
+
+#include "flv/media.hh"
+#include "flv/metadata.hh"
+#include "session/frame.hh"
+
+namespace amadeus {
+namespace rtmp {
+using namespace seastar;
+using media_ptr = std::shared_ptr<flv::media_t>;
+using script_ptr = std::shared_ptr<flv::script_t>;
+using metadata_ptr = std::shared_ptr<flv::metadata_t>;
+
+struct frame_t : public session::frame_t<media_ptr, metadata_ptr> {
+    frame_t() = default;
+
+    frame_t(media_ptr f)
+    : session::frame_t<media_ptr, metadata_ptr>(f) {}
+
+    frame_t(metadata_ptr m)
+    : session::frame_t<media_ptr, metadata_ptr>(m) {}
+
+    frame_t(script_ptr s)
+    : script(s)
+    , is_script(true) {
+        assert(s);
+    }
+
+    bool operator==(const frame_t &other) const {
+        return (is_script && other.is_script && script == other.script)
+            || (!is_script && !other.is_script && session::frame_t<media_ptr, metadata_ptr>::operator==(other));
+    }
+
+    bool operator!=(const frame_t &other) const {
+        return !(*this == other);
+    }
+
+    script_ptr script = nullptr;
+    bool is_script = false;
+
+    friend std::ostream &operator<<(std::ostream &os, const frame_t *x) {
+        if (x->is_media) os << x->media;
+        if (x->is_metadata) os << x->metadata;
+        if (x->is_script) os << x->script;
+
+        return os;
+    }
+};
+
+using frame_ptr = std::shared_ptr<frame_t>;
+} // namespace rtmp
+} // namespace amadeus

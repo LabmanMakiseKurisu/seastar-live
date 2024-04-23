@@ -85,14 +85,6 @@ class play_session : public session_impl,
         bool bhin_sent = false;
         bool ftyp_sent = false;
     };
-
-    struct remux_state {
-        bool remux = false;
-
-        int video_track_id = -1;
-        int audio_track_id = -1;
-    };
-
     virtual void on_done() override;
     virtual void on_fail() override;
     virtual void on_cancel() override;
@@ -142,10 +134,7 @@ class play_session : public session_impl,
 
     publisher_ptr _pub = nullptr;
 
-    async_frame_queue_t<flv_frame_ptr> _bmt_queue;
-
- private:
-    remux_state _remux_state;
+    async_frame_queue_t<flv_frame_ptr> _flv_queue;
 };
 
 namespace cln {

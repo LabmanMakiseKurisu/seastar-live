@@ -2,19 +2,16 @@
  * @Author: Amadeus
  * @Date: 2024-04-22 18:15:16
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-22 20:05:18
+ * @LastEditTime: 2024-04-23 09:56:22
  * @FilePath: /Amadeus/src/session/publish_session.cc
- * @Description: 
+ * @Description:
  */
-#include "session/play_session.hh"
-
 #include <seastar/core/thread.hh>
 #include <seastar/core/with_timeout.hh>
 
 #include "session/log.hh"
 #include "session/play_session.hh"
 #include "util/util.hh"
-#include "publish_session.hh"
 
 namespace amadeus {
 namespace session {
@@ -206,7 +203,7 @@ publish_session::on_frame(flv_frame_ptr frame) {
     session_impl::on_frame(frame);
 
     if (frame->is_media) {
-       // if (g_settings().frame_trace_enabled()) l.trace("{} add {}", to_string(), frame->media);
+        // if (g_settings().frame_trace_enabled()) l.trace("{} add {}", to_string(), frame->media);
     } else {
         _media_type = _gops_cache.media_options();
 
@@ -277,7 +274,7 @@ future<>
 publish_session::publish_frame(flv_frame_ptr frame) {
     if (is_complete()) return make_ready_future<>();
 
-    //on_track_frame(frame);
+    // on_track_frame(frame);
     if (!add_frame(frame)) return make_ready_future<>();
 
     if (validate_cache<flv_frame_gop_queue_t>(_gops_cache)) {

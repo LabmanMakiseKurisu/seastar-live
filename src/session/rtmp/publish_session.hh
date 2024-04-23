@@ -1,0 +1,200 @@
+#pragma once
+
+#include "session/rtmp/subscriber.hh"
+#include "session/publish_session.hh"
+
+namespace amadeus {
+namespace rtmp {
+namespace session {
+
+namespace session_ns = amadeus::session;
+
+using namespace seastar;
+using media_ptr = std::shared_ptr<flv::media_t>;
+using script_ptr = std::shared_ptr<flv::script_t>;
+using metadata_ptr = std::shared_ptr<flv::metadata_t>;
+using rtmp_frame_gop_queue_t = gop_queue_t<frame_ptr>;
+
+
+class publish_session : public session_ns::publish_session {
+ public:
+    publish_session(
+        const sstring &app,
+        const sstring &stream,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        const sstring &address = "",
+        ownership_t os = ownership_t::user,
+        format_t fmt = format_t::FLV);
+
+    publish_session(
+        const sstring &id,
+        const sstring &app,
+        const sstring &stream,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        const sstring &address = "",
+        ownership_t os = ownership_t::user,
+        format_t fmt = format_t::FLV);
+    virtual ~publish_session();
+
+    virtual future<> start_with(input_stream &in);
+
+    virtual void add_rtmp_subscriber(subscriber_ptr subscriber);
+    virtual void remove_rtmp_subscriber(subscriber_ptr subscriber);
+
+    virtual std::unique_ptr<api::v1::session_info> information() const override;
+
+    virtual float delay() const override {
+        return _rtmp_cache.duration();
+    }
+
+ protected:
+    virtual void on_begin() override;
+    virtual void on_terminate() override;
+    virtual void on_settings_update() override;
+
+    struct pipe_state {
+        metadata_ptr metadata;
+
+        int video_track_id = -1;
+        int audio_track_id = -1;
+
+        int64_t header_id = HEADER_ID_NULL;
+        bool header_sent = false;
+    };
+
+    bool validate_packet(const packet &pkt);
+
+    future<> read_once(pipe_state &st, input_stream &in);
+    future<> on_recv_packet(pipe_state &st, packet pkt);
+    future<> on_recv_script(pipe_state &st, packet pkt);
+    future<> on_recv_video(pipe_state &st, packet pkt);
+    future<> on_recv_audio(pipe_state &st, packet pkt);
+
+    void remove_all_rtmp_subscribers();
+    future<> on_frame_for_each_subscriber(frame_ptr frame);
+    future<> on_frame(std::shared_ptr<subscriber_item> item, frame_ptr frame);
+
+    future<> publish(pipe_state &st, frame_ptr frame);
+
+    // gop
+    bool add_frame(pipe_state &st, frame_ptr frame);
+    bool add_frame(frame_ptr frame);
+
+    void on_frame(frame_ptr frame);
+    void rectify_dts(frame_ptr frame);
+
+    // BMT
+    future<> publish_bmt_frame(pipe_state &st, frame_ptr frame);
+
+    void publish_bmt_bhin(pipe_state &st);
+    void publish_bmt_ftyp();
+    future<> publish_bmt_moov(pipe_state &st, metadata_ptr metadata);
+    future<> publish_bmt_media(pipe_state &st, media_ptr media);
+
+ private:
+    int64_t _last_actual_dts = -1; // ms
+    int64_t _last_end_dts = -1;    // ms
+
+    bmt_muxer_t *_muxer = nullptr;
+
+    rtmp_frame_gop_queue_t _rtmp_cache;
+
+    std::vector<std::shared_ptr<subscriber_item>> _subscribers;
+
+    int _bmt_version = BMT_PROTOCOL_VERSION_V1;
+};
+
+namespace svr {
+
+class publish_session : public rtmp::session::publish_session {
+ public:
+    publish_session(
+        const sstring &app,
+        const sstring &stream,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        const sstring &address = "",
+        ownership_t os = ownership_t::user,
+        format_t fmt = format_t::FLV);
+    publish_session(
+        const sstring &id,
+        const sstring &app,
+        const sstring &stream,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        const sstring &address = "",
+        ownership_t os = ownership_t::user,
+        format_t fmt = format_t::FLV);
+    virtual ~publish_session() = default;
+
+    virtual future<> start_with(input_stream &in) override;
+};
+
+} // namespace svr
+
+namespace cln {
+
+class publish_session : public rtmp::session::publish_session,
+                        public session_ns::client_session,
+                        public session_ns::remote_session,
+                        public util::delay_retry_runner {
+ public:
+    publish_session(
+        const sstring &app,
+        const sstring &stream,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        const sstring &address = "",
+        format_t fmt = format_t::FLV);
+    publish_session(
+        const sstring &app,
+        const sstring &stream,
+        const sstring &remote_app,
+        const sstring &remote_stream,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        const sstring &address = "",
+        format_t fmt = format_t::FLV);
+    publish_session(
+        const sstring &id,
+        const sstring &app,
+        const sstring &stream,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        const sstring &address = "",
+        format_t fmt = format_t::FLV);
+    publish_session(
+        const sstring &id,
+        const sstring &app,
+        const sstring &stream,
+        const sstring &remote_app,
+        const sstring &remote_stream,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        const sstring &address = "",
+        format_t fmt = format_t::FLV);
+    virtual ~publish_session() = default;
+
+    virtual void start() override;
+
+    virtual future<> start_with(input_stream &in) override;
+
+    virtual std::unique_ptr<api::v1::session_info> information() const override;
+
+ protected:
+    virtual future<> try_once(int times, int total_times) override;
+
+    virtual void _cancel() override;
+
+    virtual void on_retry_finished() override;
+    virtual void on_settings_update() override;
+};
+
+} // namespace cln
+} // namespace session
+} // namespace rtmp
+
+using rtmp_publisher_ptr = std::shared_ptr<rtmp::session::publish_session>;
+} // namespace amadeus

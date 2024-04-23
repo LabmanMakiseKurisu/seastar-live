@@ -4,6 +4,3 @@
 [submodule "3rd/nlohmann_json"]
 	path = 3rd/nlohmann_json
 	url = https://github.com/nlohmann/json.git
-[submodule "3rd/media-server"]
-	path = 3rd/media-server
-	url = https://github.com/ireader/media-server.git
