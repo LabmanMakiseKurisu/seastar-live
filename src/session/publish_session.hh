@@ -4,7 +4,7 @@
 #include <seastar/http/request.hh>
 #include <seastar/util/log.hh>
 
-#include "frame_queue/gop_que.hh"
+#include "frame/gop_queue.hh"
 #include "session/session.hh"
 #include "session/subscriber.hh"
 
@@ -14,11 +14,8 @@ namespace session {
 using namespace seastar;
 
 using media_ptr = std::shared_ptr<flv::media_t>;
-using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
-
-using flv_frame = frame_t<media_ptr, metadata_ptr>;
-using flv_frame_ptr = std::shared_ptr<flv_frame>;
+using flv_frame_ptr = std::shared_ptr<flv::frame_t>;
 using flv_frame_gop_queue_t = gop_queue_t<flv_frame_ptr>;
 
 class publish_session : public session_impl {

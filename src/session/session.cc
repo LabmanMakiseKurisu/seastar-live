@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-22 15:48:35
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-22 19:02:17
+ * @LastEditTime: 2024-04-24 10:25:59
  * @FilePath: /Amadeus/src/session/session.cc
  * @Description:
  */
@@ -108,6 +108,11 @@ session_impl::set_io_bytes_func(noncopyable_function<size_t()> read_func, noncop
 status
 session_impl::current_status() const {
     return _status;
+}
+
+void
+session_impl::set_settings() {
+    on_settings_update();
 }
 
 bool

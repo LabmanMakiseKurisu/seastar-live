@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-22 15:22:44
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-22 19:59:46
+ * @LastEditTime: 2024-04-24 14:07:31
  * @FilePath: /Amadeus/src/session/subscriber.hh
  * @Description:
  */
@@ -12,10 +12,8 @@
 
 #include <iostream>
 
-#include "session/frame.hh"
+#include "flv/frame.hh"
 #include "util/status.hh"
-#include "flv/metadata.hh"
-#include "flv/media.hh"
 
 namespace amadeus {
 
@@ -23,10 +21,8 @@ namespace session {
 
 using namespace seastar;
 using media_ptr = std::shared_ptr<flv::media_t>;
-using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
-using flv_frame = frame_t<media_ptr, metadata_ptr>;
-using flv_frame_ptr = std::shared_ptr<flv_frame>;
+using flv_frame_ptr = std::shared_ptr<flv::frame_t>;
 class publish_session;
 using publisher_ptr = std::shared_ptr<publish_session>;
 

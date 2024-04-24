@@ -2,29 +2,36 @@
 
 #include <seastar/core/seastar.hh>
 
-#include "frame_queue/frame_que.hh"
+#include "frame/frame_queue.hh"
 #include "util/enums.hh"
 
 namespace amadeus {
 
 using namespace seastar;
-
-template <typename Frame>
+/*
+ * @description: gop的实现，能够自动管理数据和相关属性
+ * Frame_ptr 由frame_base实现的某个具体帧的智能指针,例如std::shared_ptr<frame_base>
+ * Metadata 具体封装格式元数据帧帧的智能指针
+ * @example using media_ptr = std::shared_ptr<flv::media_t>;
+            using metadata_ptr = std::shared_ptr<flv::metadata_t>;
+            using flv_frame_ptr = frame_base<media_ptr, metadata_ptr>;
+            using flv_gops = gop_queue_t<flv_frame_ptr>
+ */
+template <typename Frame_ptr>
 class gop_queue_t {
- protected:
+ private:
     mutable std::mutex _lock;
 
-    float _min_cache_duration = -1; // 最小缓存时长
+    float _min_cache_duration = -1; //_gops在最小缓存时长 (sec)
 
-    Frame _first_metadata_frame;  // 第一个metadata帧
-    Frame _latest_metadata_frame; // 最新metadata帧
+    Frame_ptr _first_metadata_frame; //_gops中第一个元数据帧的智能指针
+    Frame_ptr _latest_metadata_frame; //_gops中最后一个元数据帧的智能指针
 
-    Frame _first_media_frame;  // 第一个media帧
-    Frame _latest_media_frame; // 最新media帧
+    Frame_ptr _first_media_frame; //_gops中第一个媒体帧的智能指针
+    Frame_ptr _latest_media_frame; //_gops中最后一个媒体帧的智能指针
 
-    frame_queue_t<Frame> _current;          // 当前gop
-    std::deque<frame_queue_t<Frame>> _gops; // 所有gop
-
+    frame_queue_t<Frame_ptr> _current; //当前正在维护的gop
+    std::deque<frame_queue_t<Frame_ptr>> _gops; //所有gop
  public:
     gop_queue_t() {}
 
@@ -73,6 +80,7 @@ class gop_queue_t {
         return _current.bytes();
     }
 
+    //获取媒体类型
     media_type_t media_options() const {
         std::lock_guard<std::mutex> g(_lock);
 
@@ -82,7 +90,7 @@ class gop_queue_t {
         return lmf->metadata->media_options();
     }
 
-    Frame current_metadata_frame() const {
+    Frame_ptr current_metadata_frame() const {
         std::lock_guard<std::mutex> g(_lock);
 
         return _latest_metadata_frame;
@@ -102,7 +110,7 @@ class gop_queue_t {
         return _min_cache_duration;
     }
 
-    void for_each_gop(std::function<void(const frame_queue_t<Frame> &)> func) {
+    void for_each_gop(std::function<void(const frame_queue_t<Frame_ptr> &)> func) {
         std::lock_guard<std::mutex> g(_lock);
 
         assert((_gops.empty() && _current.empty()) || _first_metadata_frame);
@@ -112,7 +120,7 @@ class gop_queue_t {
         func(_current);
     }
 
-    bool add_frame(Frame frame) {
+    bool add_frame(Frame_ptr frame) {
         std::lock_guard<std::mutex> g(_lock);
 
         bool valid = validate_frame(frame);
@@ -139,10 +147,10 @@ class gop_queue_t {
         return true;
     }
 
-    std::vector<Frame> all_frames() const {
+    std::vector<Frame_ptr> all_frames() const {
         std::lock_guard<std::mutex> g(_lock);
 
-        std::vector<Frame> frames;
+        std::vector<Frame_ptr> frames;
 
         for (auto &gop : _gops) frames.insert(frames.end(), gop.begin(), gop.end());
 
@@ -165,57 +173,58 @@ class gop_queue_t {
     }
 
  protected:
-    void push_frame(Frame frame) {
+    //将frame加入_current，并维护信息
+    void push_frame(Frame_ptr frame) {
         _current.push_back(frame);
 
         on_frame(frame);
     }
 
-    const frame_queue_t<Frame> &first_gop() const {
+    const frame_queue_t<Frame_ptr> &first_gop() const {
         return _gops.empty() ? _current : _gops.front();
     }
 
-    frame_queue_t<Frame> &first_gop() {
+    frame_queue_t<Frame_ptr> &first_gop() {
         return _gops.empty() ? _current : _gops.front();
     }
 
-    const frame_queue_t<Frame> &second_gop() const {
+    const frame_queue_t<Frame_ptr> &second_gop() const {
         if (_gops.size() > 1) return *(_gops.begin() + 1);
         if (_gops.size() == 1) return _current;
 
-        static frame_queue_t<Frame> empty;
+        static frame_queue_t<Frame_ptr> empty;
         return empty;
     }
 
-    const frame_queue_t<Frame> &last_gop() const {
+    const frame_queue_t<Frame_ptr> &last_gop() const {
         if (_current.empty() && _gops.size()) return _gops.back();
         return _current;
     }
 
-    frame_queue_t<Frame> &last_gop() {
+    frame_queue_t<Frame_ptr> &last_gop() {
         if (_current.empty() && _gops.size()) return _gops.back();
         return _current;
     }
 
-    const frame_queue_t<Frame> &first_media_gop() const {
+    const frame_queue_t<Frame_ptr> &first_media_gop() const {
         for (auto &gop : _gops) {
             if (gop.has_media()) return gop;
         }
         return _current;
     }
 
-    const frame_queue_t<Frame> &last_media_gop() const {
+    const frame_queue_t<Frame_ptr> &last_media_gop() const {
         if (_current.has_media()) return _current;
 
         for (auto it = _gops.rbegin(); it != _gops.rend(); ++it) {
             if (it->has_media()) return *it;
         }
 
-        static frame_queue_t<Frame> empty;
+        static frame_queue_t<Frame_ptr> empty;
         return empty;
     }
 
-    bool validate_frame(Frame frame) const {
+    bool validate_frame(Frame_ptr frame) const {
         if (frame->is_metadata) return true;
 
         auto media = frame->media;
@@ -232,7 +241,7 @@ class gop_queue_t {
         return lf && lf->media->is_keyframe();
     }
 
-    void update_gop(Frame frame) {
+    void update_gop(Frame_ptr frame) {
         if (_gops.size() < 1) return;
 
         auto min_duraiton = _min_cache_duration * 1000;
@@ -247,16 +256,17 @@ class gop_queue_t {
         auto timeoffset = lf->media->dts() - sf->media->dts();
         if (timeoffset < min_duraiton) return;
 
-        auto fmf = _first_metadata_frame;
-        assert(fmf);
+        if (_gops.empty()) return;
 
-        bool requires_pop = _gops.size();
-        if (requires_pop) _gops.pop_front();
+        auto flmf = _gops.front().latest_metadata_frame();
+        assert(flmf);
+
+        _gops.pop_front();
 
         auto &nfg = first_gop();
-        if (!nfg.start_with_metadata()) nfg.push_front(fmf);
+        if (!nfg.start_with_metadata()) nfg.push_front(flmf);
 
-        if (requires_pop) on_pop_gop();
+        on_pop_gop();
 
         update_gop(frame);
     }
@@ -270,8 +280,8 @@ class gop_queue_t {
     }
 
  private:
-    // 用frame刷新成员变量
-    void on_frame(Frame frame) {
+    //当frame被加入到_current时，维护相关属性
+    void on_frame(Frame_ptr frame) {
         if (_gops.empty()) {
             _first_metadata_frame = _current.first_metadata_frame();
             _latest_metadata_frame = _current.first_metadata_frame();
@@ -287,10 +297,10 @@ class gop_queue_t {
             }
         }
     }
-
+    //当_gops调用pop_front时，维护相关属性
     void on_pop_gop() {
-        Frame first_media_frame;
-        Frame first_metadata_frame;
+        Frame_ptr first_media_frame;
+        Frame_ptr first_metadata_frame;
 
         for (auto &gop : _gops) {
             if (!first_media_frame && gop.has_media()) first_media_frame = gop.first_media_frame();

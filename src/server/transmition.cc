@@ -10,7 +10,6 @@
 #include <chrono>
 #include <fstream>
 
-//#include "app/environment.hh"
 #include "server/log.hh"
 #include "util/CxxUrl.hh"
 #include "util/util.hh"
@@ -506,6 +505,7 @@ transmition::add_publisher(publisher_ptr pub) {
     bool success = _publishers.add(pub);
     if (success) {
         //pub->set_settings(settings_for(pub->app(), pub->stream()));
+        pub->set_settings();
         pub->set_lifecycle(this);
 
         l.info("add {}", pub->to_string());
@@ -630,6 +630,7 @@ transmition::add_player(player_ptr plyr) {
     bool success = _players.add(plyr);
     if (success) {
         //plyr->set_settings(settings_for(plyr->app(), plyr->stream()));
+        plyr->set_settings();
         plyr->set_lifecycle(this);
 
         l.info("add {}", plyr->to_string());
@@ -1008,6 +1009,7 @@ transmition::make_backsource(
     }
 
     //if (pub) pub->set_settings(settings_for(pub->app(), pub->stream()));
+    pub->set_settings();
     return pub;
 }
 
@@ -1061,6 +1063,7 @@ transmition::make_forward(
     }
 
     //if (plyr) plyr->set_settings(settings_for(plyr->app(), plyr->stream()));
+    plyr->set_settings();
     return plyr;
 }
 
@@ -1104,6 +1107,7 @@ transmition::make_publisher(
     }
 
     //if (pub) pub->set_settings(settings_for(app, stream));
+    pub->set_settings();
     return pub;
 }
 
@@ -1167,6 +1171,7 @@ transmition::make_player(
     }
 
     //if (plyr) plyr->set_settings(settings_for(app, stream));
+    if (plyr) plyr->set_settings();
     return plyr;
 }
 

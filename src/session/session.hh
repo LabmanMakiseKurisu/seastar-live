@@ -10,10 +10,8 @@
 #include <seastar/util/log.hh>
 
 #include "app/global_setting.hh"
-#include "flv/metadata.hh"
-#include "flv/media.hh"
-#include "frame_queue/frame_que.hh"
-#include "session/frame.hh"
+#include "frame/frame_queue.hh"
+#include "flv/frame.hh"
 #include "session/log.hh"
 #include "util/enums.hh"
 #include "util/retry_runner.hh"
@@ -33,10 +31,8 @@ namespace session {
 
 using namespace seastar;
 using media_ptr = std::shared_ptr<flv::media_t>;
-using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
-using flv_frame = frame_t<media_ptr, metadata_ptr>;
-using flv_frame_ptr = std::shared_ptr<flv_frame>;
+using flv_frame_ptr = std::shared_ptr<flv::frame_t>;
 
 class pipe {
  public:
@@ -284,7 +280,7 @@ class session_impl : public pipe,
     void set_io_bytes_func(noncopyable_function<size_t()> read_func, noncopyable_function<size_t()> write_func);
 
     status current_status() const;
-
+    void set_settings();
     bool is_done() const;
     bool is_canceled() const;
     bool is_failed() const;

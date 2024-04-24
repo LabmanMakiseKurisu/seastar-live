@@ -15,6 +15,7 @@ using namespace seastar;
 using media_ptr = std::shared_ptr<flv::media_t>;
 using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
+using frame_ptr = std::shared_ptr<flv::frame_t>;
 using rtmp_frame_gop_queue_t = gop_queue_t<frame_ptr>;
 
 class publish_session : public session_ns::publish_session {

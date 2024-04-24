@@ -59,9 +59,7 @@ flv_bits_index_from_samplesize(uint32_t samplesize) {
 }
 
 meta_t::meta_t(int32_t _codecid, double _bitrate, double _datarate)
-: codecid(_codecid)
-, bitrate(_bitrate)
-, datarate(_datarate) {}
+: meta_base(_codecid, _bitrate, _datarate) {}
 
 sstring
 meta_t::to_string() const {
@@ -405,9 +403,10 @@ video_meta_t::to_string() const {
         v_to_string());
 }
 
-metadata_t::metadata_t(const metadata_t &x)
-: video(x.video)
-, audio(x.audio) {}
+metadata_t::metadata_t(const metadata_t &x) {
+    video = x.video;
+    audio = x.audio;
+}
 
 metadata_t::metadata_t(const uint8_t *data, size_t len) {
     load(data, len);
@@ -592,35 +591,6 @@ metadata_t::to_tag_data() const {
     std::copy_n(buf.data(), len, result.get_write());
 
     return result;
-}
-
-bool
-metadata_t::is_enabled() const {
-    return audio.is_enabled() || video.is_enabled();
-}
-
-bool
-metadata_t::is_enabled(media_type_t type) const {
-    auto is_video = (type & media_type_t::video) != media_type_t::none;
-    if (is_video && !video.is_enabled()) return false;
-
-    auto is_audio = (type & media_type_t::audio) != media_type_t::none;
-    if (is_audio && !audio.is_enabled()) return false;
-
-    return true;
-}
-
-bool
-metadata_t::is_video_frame(std::shared_ptr<media_t> media) {
-    return media->is_video();
-}
-
-media_type_t
-metadata_t::media_options() const {
-    media_type_t options = media_type_t::none;
-    if (video.is_enabled()) options |= media_type_t::video;
-    if (audio.is_enabled()) options |= media_type_t::audio;
-    return options;
 }
 
 sstring

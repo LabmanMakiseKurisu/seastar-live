@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 13:29:35
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 14:04:41
+ * @LastEditTime: 2024-04-24 14:16:40
  * @FilePath: /Amadeus/src/session/rtmp/publish_session.cc
  * @Description:
  */
@@ -219,7 +219,7 @@ publish_session::on_recv_script(pipe_state &st, packet pkt) {
         int rt = meta->load(data + n, remain);
         if (rt < 0) return make_exception_future<>(std::runtime_error("failed to parse metadata"));
 
-        auto frame = std::make_shared<frame_t>(meta);
+        auto frame = std::make_shared<amadeus::flv::frame_t>(meta);
         if (add_frame(st, frame)) return publish(st, frame);
     } else if (cmd == flv::amf_command::rtmp_sample_access) {
         flv::rtmp_sample_access_t sa;
@@ -227,7 +227,7 @@ publish_session::on_recv_script(pipe_state &st, packet pkt) {
         if (rt < 0) return make_exception_future<>(std::runtime_error("failed to parse sample_access"));
     } else {
         auto script = std::make_shared<flv::script_t>(pkt.data.share(n, remain));
-        auto frame = std::make_shared<frame_t>(script);
+        auto frame = std::make_shared<amadeus::flv::frame_t>(script);
         if (add_frame(st, frame)) return publish(st, frame);
     }
     return make_ready_future<>();
@@ -262,7 +262,7 @@ publish_session::on_recv_video(pipe_state &st, packet pkt) {
         if (rt < 0) {
             return make_exception_future<>(std::runtime_error(fmt::format("failed to parse video header: {}", rt)));
         }
-        auto frame = std::make_shared<frame_t>(meta);
+        auto frame = std::make_shared<amadeus::flv::frame_t>(meta);
         if (add_frame(st, frame)) return publish(st, frame);
     } else {
         if (!st.metadata) return make_ready_future<>();
@@ -270,7 +270,7 @@ publish_session::on_recv_video(pipe_state &st, packet pkt) {
         auto media = std::make_shared<flv::video_media_t>(header.keyframe, header.cts, dts, pkt.data.share(n, remain));
         if (!media) return make_ready_future<>();
 
-        auto frame = std::make_shared<frame_t>(media);
+        auto frame = std::make_shared<amadeus::flv::frame_t>(media);
         auto size = frame->media->data().size();
 
         if (add_frame(st, frame)) return publish(st, frame);
@@ -308,7 +308,7 @@ publish_session::on_recv_audio(pipe_state &st, packet pkt) {
         if (rt < 0) {
             return make_exception_future<>(std::runtime_error(fmt::format("failed to parse audio header: {}", rt)));
         }
-        auto frame = std::make_shared<frame_t>(meta);
+        auto frame = std::make_shared<amadeus::flv::frame_t>(meta);
         if (add_frame(st, frame)) return publish(st, frame);
     } else {
         if (!st.metadata) return make_ready_future<>();
@@ -316,7 +316,7 @@ publish_session::on_recv_audio(pipe_state &st, packet pkt) {
         auto media = std::make_shared<flv::audio_media_t>(dts, pkt.data.share(n, remain));
         if (!media) return make_ready_future<>();
 
-        auto frame = std::make_shared<frame_t>(media);
+        auto frame = std::make_shared<amadeus::flv::frame_t>(media);
         auto size = frame->media->data().size();
         if (add_frame(st, frame)) return publish(st, frame);
     }
@@ -420,6 +420,7 @@ publish_session::add_frame(frame_ptr frame) {
 
 void
 publish_session::on_frame(frame_ptr frame) {
+    session_ns::session_impl::on_frame(frame);
     if (frame->is_media) {
         if (g_settings().frame_trace_enabled()) l.trace("{} add {}", to_string(), frame->media);
     } else {

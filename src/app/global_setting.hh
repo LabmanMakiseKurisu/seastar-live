@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 11:43:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 15:30:41
+ * @LastEditTime: 2024-04-24 13:20:24
  * @FilePath: /Amadeus/src/app/global_setting.hh
  * @Description: 
  */
@@ -25,7 +25,6 @@ class global_settings {
     std::vector<element_base *> _elements;
 
  public:
-    //element<sstring> boost_configuration_file = element<sstring>("cnf", "", "Boost configure file path");
     element<sstring> json_configuration_file = element<sstring>("json", "", "json configure file path");
     element<sstring> rtmp_listen_address = element<sstring>("rtmp-listen", "0.0.0.0:1935", "RTMP listen address");
     element<float> rtmp_min_cache_duration =

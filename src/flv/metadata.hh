@@ -26,38 +26,27 @@
 #include <mpeg4-aac.h>
 #include <mpeg4-avc.h>
 #include <mpeg4-hevc.h>
-#include <seastar/core/seastar.hh>
-#include <seastar/core/temporary_buffer.hh>
 
-#include "util/enums.hh"
-#include "util/status.hh"
+#include "frame/metadata_base.hh"
 
 namespace amadeus {
 namespace flv {
 
 using namespace seastar;
 
-struct media_t;
+class media_t;
 
 // audio_meta_t和video_meta_t的基类
-struct meta_t {
-    int32_t codecid = -1; // 编码方式代号
-    double bitrate = 0;
-    double datarate = 0; // kbps
-
+class meta_t : public meta_base {
+ public:
     sstring codec; // 编码方式
-
     sstring codec_name() const;
 
     meta_t() = default;
     meta_t(int32_t _codecid, double _bitrate, double _datarate);
     virtual ~meta_t() = default;
 
-    bool is_enabled() const {
-        return codecid >= 0 && _valid;
-    }
-
-    virtual sstring to_string() const;
+    virtual sstring to_string() const override;
 
     friend std::ostream &operator<<(std::ostream &os, const meta_t *v) {
         return os << v->to_string();
@@ -66,9 +55,6 @@ struct meta_t {
     friend std::ostream &operator<<(std::ostream &os, const meta_t &v) {
         return os << &v;
     }
-
- protected:
-    bool _valid = false;
 };
 
 // flv 音频元数据
@@ -138,7 +124,6 @@ struct video_meta_t : public meta_t {
  public:
     video_meta_t();
     video_meta_t(const video_meta_t &x);
-    // video_meta_t(video_meta_t &&x);
     virtual ~video_meta_t() = default;
 
     video_meta_t &operator=(video_meta_t &&x) = default;
@@ -174,21 +159,13 @@ struct video_meta_t : public meta_t {
 };
 
 // flv 音视频元数据
-struct metadata_t {
-    video_meta_t video;
-    audio_meta_t audio;
-
+class metadata_t : public metadata_base<video_meta_t,audio_meta_t> {
+public:
     metadata_t() = default;
     metadata_t(const metadata_t &x);
     metadata_t(const metadata_t &x, media_type_t media_type);
     metadata_t(metadata_t &&x) = default;
     metadata_t(const uint8_t *data, size_t len);
-    video_meta_t* video_meta() {
-        return &video;
-    }
-    audio_meta_t* audio_meta() {
-        return &audio;
-    }
     virtual ~metadata_t() = default;
 
     metadata_t &operator=(metadata_t &&x) = default;
@@ -202,13 +179,7 @@ struct metadata_t {
     //创建AMF的buffer
     virtual temporary_buffer<uint8_t> to_tag_data() const;
 
-    bool is_enabled() const;
-    bool is_enabled(media_type_t type) const;
-    bool is_video_frame(std::shared_ptr<media_t> media);
-
-    media_type_t media_options() const;
-
-    virtual sstring to_string() const;
+    virtual sstring to_string() const override;
 
     friend std::ostream &operator<<(std::ostream &os, const metadata_t *v) {
         return os << v->to_string();
@@ -217,8 +188,6 @@ struct metadata_t {
     friend std::ostream &operator<<(std::ostream &os, const metadata_t &v) {
         return os << &v;
     }
-
- protected:
 };
 
 struct rtmp_sample_access_t {

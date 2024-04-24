@@ -13,16 +13,16 @@ namespace flv {
 using namespace seastar;
 using media_ptr = std::shared_ptr<flv::media_t>;
 
-sstring
-media_t::to_string() const {
-    return fmt::format(
-        "{} is_video: {} is_keyframe: {} dts: {} media_data: {}",
-        seastar::pretty_type_name(typeid(flv::media_t)),
-        _is_video,
-        _is_keyframe,
-        _dts,
-        _data.size());
-}
+// sstring
+// media_t::to_string() const {
+//     return fmt::format(
+//         "{} is_video: {} is_keyframe: {} dts: {} media_data: {}",
+//         seastar::pretty_type_name(typeid(flv::media_t)),
+//         _is_video,
+//         _is_keyframe,
+//         _dts,
+//         _data.size());
+// }
 
 audio_media_t::audio_media_t(uint64_t dts, temporary_buffer<uint8_t> data) {
     _is_video = false;

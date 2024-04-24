@@ -1,25 +1,35 @@
+/*
+ * @Author: Amadeus
+ * @Date: 2024-04-23 10:41:38
+ * @LastEditors: Amadeus
+ * @LastEditTime: 2024-04-24 14:14:12
+ * @FilePath: /Amadeus/src/flv/frame.hh
+ * @Description:
+ */
 
 #pragma once
 
 #include "flv/media.hh"
 #include "flv/metadata.hh"
-#include "session/frame.hh"
+#include "frame/frame_base.hh"
 
 namespace amadeus {
-namespace rtmp {
+namespace flv {
 using namespace seastar;
 using media_ptr = std::shared_ptr<flv::media_t>;
 using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
+using Frame = amadeus::frame_base<media_ptr, metadata_ptr>;
 
-struct frame_t : public session::frame_t<media_ptr, metadata_ptr> {
+class frame_t : public Frame {
+public:
     frame_t() = default;
 
     frame_t(media_ptr f)
-    : session::frame_t<media_ptr, metadata_ptr>(f) {}
+    : Frame(f) {}
 
     frame_t(metadata_ptr m)
-    : session::frame_t<media_ptr, metadata_ptr>(m) {}
+    : Frame(m) {}
 
     frame_t(script_ptr s)
     : script(s)
@@ -29,7 +39,7 @@ struct frame_t : public session::frame_t<media_ptr, metadata_ptr> {
 
     bool operator==(const frame_t &other) const {
         return (is_script && other.is_script && script == other.script)
-            || (!is_script && !other.is_script && session::frame_t<media_ptr, metadata_ptr>::operator==(other));
+            || (!is_script && !other.is_script && Frame::operator==(other));
     }
 
     bool operator!=(const frame_t &other) const {
@@ -49,5 +59,5 @@ struct frame_t : public session::frame_t<media_ptr, metadata_ptr> {
 };
 
 using frame_ptr = std::shared_ptr<frame_t>;
-} // namespace rtmp
+} // namespace flv
 } // namespace amadeus

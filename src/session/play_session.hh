@@ -17,8 +17,7 @@ using media_ptr = std::shared_ptr<flv::media_t>;
 using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
 
-using flv_frame = frame_t<media_ptr, metadata_ptr>;
-using flv_frame_ptr = std::shared_ptr<flv_frame>;
+using flv_frame_ptr = std::shared_ptr<flv::frame_t>;
 using flv_frame_gop_queue_t = gop_queue_t<flv_frame_ptr>;
 
 class play_session : public session_impl,
