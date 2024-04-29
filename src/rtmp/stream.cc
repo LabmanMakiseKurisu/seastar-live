@@ -1,24 +1,3 @@
-/*
- * This file is open source software, licensed to you under the terms
- * of the Apache License, Version 2.0 (the "License").  See the NOTICE file
- * distributed with this work for additional information regarding copyright
- * ownership.  You may not use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *
- *   http3://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-/*
- * Copyright 2023 bilibili
- */
-
 #include "rtmp/stream.hh"
 
 namespace amadeus {
@@ -39,14 +18,11 @@ future<> input_stream::consume(Consumer&& consumer) noexcept(std::is_nothrow_mov
             return seastar::visit(
                 result.get(),
                 [this](const continue_consuming&) {
-                    // If we're here, consumer consumed entire buffer and is ready for
-                    // more now. So we do not return, and rather continue the loop.
-                    //
-                    // If we're at eof, we should stop.
+                    //处理成功，根据_eof的状态，判断是否需要继续消费
                     return make_ready_future<stop_iteration>(stop_iteration(this->_eof));
                 },
                 [this](stop_consuming& stop) {
-                    // consumer is done
+                    // 遇到需要停止的情况，说明当前_pkt没有被处理，返还给流
                     this->_pkt = std::move(stop.get_packet());
                     return make_ready_future<stop_iteration>(stop_iteration::yes);
                 });
@@ -60,6 +36,7 @@ future<> input_stream::consume(Consumer& consumer) noexcept(std::is_nothrow_move
     return consume(std::ref(consumer));
 }
 
+//从_fd中读pkt到_pkt
 future<packet>
 input_stream::read() noexcept {
     if (_eof) return make_ready_future<packet>();

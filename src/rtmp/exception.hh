@@ -1,24 +1,3 @@
-/*
- * This file is open source software, licensed to you under the terms
- * of the Apache License, Version 2.0 (the "License").  See the NOTICE file
- * distributed with this work for additional information regarding copyright
- * ownership.  You may not use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
- */
-/*
- * Copyright 2015 Cloudius Systems
- */
-
 #pragma once
 
 #include <seastar/json/json_elements.hh>
@@ -63,24 +42,27 @@ class base_exception : public std::exception {
 /**
  * Throwing this exception will result in a redirect to the given url
  */
+//重定向异常
 class redirect_exception : public base_exception {
  public:
     redirect_exception(const std::string& url)
     : base_exception("", reply::status_type::internal_error)
     , url(url) {}
 
-    std::string url;
+    std::string url; //重定向url
 };
 
 /**
  * Throwing this exception will result in a 404 not found result
  */
+//资源未找到
 class not_found_exception : public base_exception {
  public:
     not_found_exception(const std::string& msg = "Not found")
     : base_exception(msg, reply::status_type::internal_error) {}
 };
 
+//服务器错误
 class server_error_exception : public base_exception {
  public:
     server_error_exception(const std::string& msg)
@@ -90,6 +72,7 @@ class server_error_exception : public base_exception {
 /**
  * Client-side exception to report unexpected server reply status
  */
+//客户端收到意外的响应状态
 class unexpected_status_error : public base_exception {
  public:
     unexpected_status_error(reply::status_type st)
@@ -99,13 +82,14 @@ class unexpected_status_error : public base_exception {
 /**
  * Throwing this exception will result in a 400 bad request result
  */
-
+//客户端请求不恰当
 class bad_request_exception : public base_exception {
  public:
     bad_request_exception(const std::string& msg)
     : base_exception(msg, reply::status_type::internal_error) {}
 };
 
+//将多个异常嵌套组合
 static inline std::exception_ptr
 make_nested_exception(std::vector<std::exception_ptr> exceptions) {
     if (exceptions.empty()) return nullptr;

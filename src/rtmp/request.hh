@@ -1,40 +1,19 @@
 /*
- * This file is open source software, licensed to you under the terms
- * of the Apache License, Version 2.0 (the "License").  See the NOTICE file
- * distributed with this work for additional information regarding copyright
- * ownership.  You may not use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * @Author: Amadeus
+ * @Date: 2024-04-23 10:51:20
+ * @LastEditors: Amadeus
+ * @LastEditTime: 2024-04-29 15:24:54
+ * @FilePath: /Amadeus/src/rtmp/request.hh
+ * @Description:
  */
-/*
- * Copyright 2015 Cloudius Systems
- */
-
-//
-// request.hpp
-// ~~~~~~~~~~~
-//
-// Copyright (c) 2003-2013 Christopher M. Kohlhoff (chris at kohlhoff dot com)
-//
-// Distributed under the Boost Software License, Version 1.0. (See accompanying
-// file LICENSE_1_0.txt or copy at http://www.boost.org/LICENSE_1_0.txt)
-//
 #pragma once
 
+#include <seastar/core/iostream.hh>
 #include <seastar/core/sstring.hh>
+#include <seastar/core/temporary_buffer.hh>
 #include <seastar/net/socket_defs.hh>
+#include <seastar/util/noncopyable_function.hh>
 #include <seastar/util/string_utils.hh>
-
-#include "rtmp/stream.hh"
 
 namespace amadeus {
 namespace rtmp {
@@ -48,8 +27,7 @@ class output_stream;
  * A request received from a client.
  */
 struct request {
-    socket_address _remote_address; // for server
-
+ public:
     // Bvc Request Information
     enum mode {
         publish = 0,
@@ -59,11 +37,6 @@ struct request {
 
         NUM_MODE
     };
-
-    mode _mode = mode::publish;
-
-    sstring app_name;
-    sstring stream_name;
 
     enum type {
         live = 0,
@@ -75,49 +48,26 @@ struct request {
         NUM_TYPE
     };
 
-    type _type = type::ignored; // for server publish
+ public:
+    socket_address _remote_address; // 请求方地址
+    mode _mode = mode::publish; //模式，默认为推流
+    sstring app_name; //app名
+    sstring stream_name; //流名
+    type _type = type::ignored; // 类型
+    double start = 0;           // 起始时间戳
+    double duration = 0;        // 时长
+    uint8_t reset = 0;          // for server play
+    sstring tcurl; //代表请求的转发URL
+    std::unordered_map<sstring, sstring> args; //请求参数
+    noncopyable_function<future<>(const request& req, input_stream&)> _body_reader;  //handler 效果未知
+    noncopyable_function<future<>(const request& req, output_stream&)> _body_writer; //handler 写入请求体到输出流
+    noncopyable_function<size_t()> _read_bytes_provider;  //handler 统计读入的字节数 
+    noncopyable_function<size_t()> _write_bytes_provider; //handler 统计写入的字节数
 
-    double start = 0;    // for server play
-    double duration = 0; // for server play
-    uint8_t reset = 0;   // for server play
-
-    sstring tcurl;
-
-    std::unordered_map<sstring, sstring> args;
-
+ public:
     sstring stream();
-
-    /*
-     * The handler should read the contents of this stream till reaching eof (i.e., the end of this request's content).
-     * Failing to do so will force the server to close this connection, and the client will not be able to reuse this
-     * connection for the next request. The stream should not be closed by the handler, the server will close it for the
-     * handler.
-     * */
-    noncopyable_function<future<>(const request &req, output_stream &)> _body_writer; // for client
-    noncopyable_function<future<>(const request &req, input_stream &)> _body_reader;  // for server
-
-    noncopyable_function<size_t()> _read_bytes_provider;
-    noncopyable_function<size_t()> _write_bytes_provider;
-
-    /**
-     * \brief Use an output stream to write the message body
-     *
-     * When a handler needs to use an output stream it should call this method
-     * with a function.
-     *
-     *  you would have used for such a content, (i.e. "txt", "html", "json", etc')
-     * \param body_writer - a function that accept an output stream and use that stream to write the body.
-     *   The function should take ownership of the stream while using it and must close the stream when it
-     *   is done.
-     *
-     * This method can be used to write body of unknown or hard to evaluate length. For example,
-     * when sending the contents of some other input_stream or when the body is available as a
-     * collection of memory buffers. Message would use chunked transfer encoding.
-     *
-     */
-    void write_body(noncopyable_function<future<>(const request &req, output_stream &)> &&body_writer);
     void read_body(noncopyable_function<future<>(const request &req, input_stream &)> &&body_reader);
-
+    void write_body(noncopyable_function<future<>(const request &req, output_stream &)> &&body_writer);
     static request make(mode m, const sstring &app_name, const sstring &stream_name, const sstring &tcurl = "");
 
     friend std::ostream &operator<<(std::ostream &os, const request *v) {

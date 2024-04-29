@@ -103,6 +103,12 @@ struct audio_meta_t : public meta_t {
     virtual sstring to_string() const override;
 
  private:
+    /*
+        cid:编码方式
+        data:待解析数据
+        bytes:待解析数据长度
+        brief：解析元数据，并填充aac
+    */
     int _load(int32_t cid, const uint8_t *data, int bytes);
 };
 
@@ -155,6 +161,12 @@ struct video_meta_t : public meta_t {
     virtual sstring to_string() const override;
 
  private:
+     /*
+        cid:编码方式
+        data:待解析数据
+        bytes:待解析数据长度
+        brief：解析元数据，并填充v
+    */
     int _load(int32_t cid, const uint8_t *data, int bytes);
 };
 

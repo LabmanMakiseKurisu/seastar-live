@@ -1,24 +1,11 @@
 /*
- * This file is open source software, licensed to you under the terms
- * of the Apache License, Version 2.0 (the "License").  See the NOTICE file
- * distributed with this work for additional information regarding copyright
- * ownership.  You may not use this file except in compliance with the License.
- *
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing,
- * software distributed under the License is distributed on an
- * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
- * KIND, either express or implied.  See the License for the
- * specific language governing permissions and limitations
- * under the License.
+ * @Author: Amadeus
+ * @Date: 2024-04-23 10:51:20
+ * @LastEditors: Amadeus
+ * @LastEditTime: 2024-04-29 15:33:50
+ * @FilePath: /Amadeus/src/rtmp/handlers.hh
+ * @Description: 
  */
-/*
- * Copyright 2015 Cloudius Systems
- */
-
 #pragma once
 
 #include <unordered_map>
@@ -33,21 +20,8 @@ using namespace seastar;
 
 typedef const rtmp::request &const_req;
 
-/**
- * handlers holds the logic for serving an incoming request.
- * All handlers inherit from the base tcpserver_handler and
- * implement the handle method.
- *
- */
 class handler_base {
  public:
-    /**
-     * All handlers should implement this method.
-     *  It fill the reply according to the request.
-     * @param type the type used in this call
-     * @param req the original request
-     * @param rep the reply
-     */
     virtual future<std::unique_ptr<rtmp::reply>>
     handle(std::unique_ptr<rtmp::request> &req, std::unique_ptr<rtmp::reply> rep) = 0;
 

@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 10:51:20
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 14:27:41
+ * @LastEditTime: 2024-04-24 19:33:34
  * @FilePath: /Amadeus/src/rtmp/packet.hh
  * @Description:
  */
@@ -24,7 +24,7 @@ struct packet {
         script,
     } type = video;
 
-    temporary_buffer<uint8_t> data;
+    temporary_buffer<uint8_t> data; 
     int64_t dts = 0;
 
     packet()

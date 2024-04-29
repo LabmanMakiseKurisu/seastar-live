@@ -1,21 +1,3 @@
-/*
- * @Author: Amadeus
- * @Date: 2024-04-23 10:51:21
- * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 10:56:05
- * @FilePath: /Amadeus/src/rtmp/status.hh
- * @Description: 
- */
-/*
- * Copyright (C) 2014 Cloudius Systems, Ltd.
- *
- * This work is open source software, licensed under the terms of the
- * BSD license as described in the LICENSE f in the top-level directory.
- *
- *  This is an Auto-Generated-code
- *  Changes you do in this file will be erased on next code generation
- */
-
 #pragma once
 
 #include "util/status.hh"

@@ -119,7 +119,7 @@ class gop_queue_t {
 
         func(_current);
     }
-
+    //外部主要使用接口，将新的一帧加入到gops中
     bool add_frame(Frame_ptr frame) {
         std::lock_guard<std::mutex> g(_lock);
 
@@ -146,7 +146,7 @@ class gop_queue_t {
 
         return true;
     }
-
+    //取出所有帧
     std::vector<Frame_ptr> all_frames() const {
         std::lock_guard<std::mutex> g(_lock);
 
