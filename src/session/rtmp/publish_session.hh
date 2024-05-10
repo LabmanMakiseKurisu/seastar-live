@@ -89,9 +89,9 @@ class publish_session : public session_ns::publish_session {
     int64_t _last_actual_dts = -1; // ms
     int64_t _last_end_dts = -1;    // ms
 
-    rtmp_frame_gop_queue_t _rtmp_cache;
+    rtmp_frame_gop_queue_t _rtmp_cache; 
 
-    std::vector<std::shared_ptr<subscriber_item>> _subscribers;
+    std::vector<std::shared_ptr<subscriber_item>> _subscribers; //带receiveing状态的subscriber数组
 };
 
 namespace svr {
@@ -122,63 +122,6 @@ class publish_session : public rtmp::session::publish_session {
 
 } // namespace svr
 
-namespace cln {
-
-class publish_session : public rtmp::session::publish_session,
-                        public session_ns::client_session,
-                        public session_ns::remote_session,
-                        public util::delay_retry_runner {
- public:
-    publish_session(
-        const sstring &app,
-        const sstring &stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        format_t fmt = format_t::FLV);
-    publish_session(
-        const sstring &app,
-        const sstring &stream,
-        const sstring &remote_app,
-        const sstring &remote_stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        format_t fmt = format_t::FLV);
-    publish_session(
-        const sstring &id,
-        const sstring &app,
-        const sstring &stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        format_t fmt = format_t::FLV);
-    publish_session(
-        const sstring &id,
-        const sstring &app,
-        const sstring &stream,
-        const sstring &remote_app,
-        const sstring &remote_stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        format_t fmt = format_t::FLV);
-    virtual ~publish_session() = default;
-
-    virtual void start() override;
-
-    virtual future<> start_with(input_stream &in) override;
-
- protected:
-    virtual future<> try_once(int times, int total_times) override;
-
-    virtual void _cancel() override;
-
-    virtual void on_retry_finished() override;
-    virtual void on_settings_update() override;
-};
-
-} // namespace cln
 } // namespace session
 } // namespace rtmp
 

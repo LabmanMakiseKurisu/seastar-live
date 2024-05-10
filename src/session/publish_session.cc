@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-22 18:15:16
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 09:56:22
+ * @LastEditTime: 2024-05-10 12:01:53
  * @FilePath: /Amadeus/src/session/publish_session.cc
  * @Description:
  */
@@ -38,6 +38,7 @@ publish_session::publish_session(
     protocol_t prot)
 : session_impl(id, app, stream, internal_url, args, address, os, fmt, media_type_t::none, prot) {
     _type = type_t::publish;
+    l.info("the publish_session instance is running on shard: {}", this_shard_id());
 }
 
 publish_session::~publish_session() {
@@ -300,106 +301,6 @@ void
 publish_session::add_temporary_frame(flv_frame_ptr frame) {
     _temporary_frames.push_back(frame);
 }
-
-namespace cln {
-publish_session::publish_session(
-    const sstring &app,
-    const sstring &stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    ownership_t os,
-    format_t fmt,
-    protocol_t prot)
-: publish_session(app, stream, app, stream, internal_url, args, address, os, fmt, prot) {}
-
-publish_session::publish_session(
-    const sstring &app,
-    const sstring &stream,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    ownership_t os,
-    format_t fmt,
-    protocol_t prot)
-: publish_session(
-    util::generate_uuid(), app, stream, remote_app, remote_stream, internal_url, args, address, os, fmt, prot) {}
-
-publish_session::publish_session(
-    const sstring &id,
-    const sstring &app,
-    const sstring &stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    ownership_t os,
-    format_t fmt,
-    protocol_t prot)
-: publish_session(id, app, stream, app, stream, internal_url, args, address, os, fmt, prot) {}
-
-publish_session::publish_session(
-    const sstring &id,
-    const sstring &app,
-    const sstring &stream,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    ownership_t os,
-    format_t fmt,
-    protocol_t prot)
-: session::publish_session(id, app, stream, internal_url, args, address, os, fmt, prot)
-, session::remote_session(remote_app, remote_stream)
-, util::delay_retry_runner(std::make_unique<util::delay_retry_mode>()) {
-    _auto_complete = false;
-}
-
-future<>
-publish_session::start_with(input_stream<char> &in) {
-    on_connect();
-
-    return session::publish_session::start_with(in).then([&in, this] {
-        if (!_finished && _done) return make_exception_future<>(std::runtime_error("need retry"));
-        return make_ready_future<>();
-    });
-}
-
-void
-publish_session::start() {
-    (void)async([self = static_pointer_cast<publish_session>(shared_from_this())] {
-        self->on_launch();
-        auto f = self->run().finally([self] {
-            self->on_terminate();
-            l.debug("retry end");
-        });
-        f.get();
-    });
-}
-
-void
-publish_session::on_retry_finished() {
-    session::publish_session::_end();
-}
-
-void
-publish_session::_cancel() {
-    util::delay_retry_runner::cancel();
-
-    session::publish_session::_cancel();
-}
-
-void
-publish_session::on_settings_update() {
-    session::publish_session::on_settings_update();
-
-    _retry_mode->set_max_try_times(INT_MAX);
-    _retry_mode->set_delay(std::chrono::milliseconds(static_cast<uint64_t>(1.0f * 1000)));
-}
-
-} // namespace cln
 
 namespace svr {
 

@@ -30,7 +30,11 @@ client_ref::client_ref(client* c) noexcept
     _c->_total_connections++;
 }
 
-client_ref::~client_ref() {}
+client_ref::~client_ref() {
+    if (_c) {
+        _c->_total_connections--;
+    }
+}
 
 client::connection::connection(connected_socket&& fd, internal::client_ref cr)
 : _fd(std::move(fd))
@@ -65,18 +69,22 @@ client::connection::~connection() {
     l.debug("connection desctruct {}", _ref.get()->_new_connections->remote_address());
 }
 
+
+//维护connection和_ref的_recv_bytes
 void
 client::connection::on_recv(size_t bytes) {
     _recv_bytes += bytes;
     _ref.get()->_recv_bytes += bytes;
 }
 
+//维护connection和_ref的_send_bytes
 void
 client::connection::on_send(size_t bytes) {
     _send_bytes += bytes;
     _ref.get()->_send_bytes += bytes;
 }
 
+//设置_rtmp_cln的属性和事件回调
 void
 client::connection::reset(request& req) {
     l.trace("reset rtmp client {}", req);
@@ -91,6 +99,7 @@ client::connection::reset(request& req) {
     _rtmp_cln = ::rtmp_client_create(req.app_name.c_str(), req.stream().c_str(), req.tcurl.c_str(), this, &handler);
 }
 
+//flv的tag封装为rtmp的chunk，再调用rtmp_handler_send
 int
 client::connection::send(packet pkt) {
     if (!_rtmp_cln) return -1;
@@ -226,11 +235,13 @@ client::connection::on_write_buffers(std::deque<temporary_buffer<char>> bufs) {
     });
 }
 
+//把_media_input_cache中所有pkt移动到_media_input
 future<>
 client::connection::flush_in() {
     return on_read_packets(std::move(_media_input_cache));
 }
 
+//把_data_output_cache中所有buf放入_write_buf并发送
 future<>
 client::connection::flush_out() {
     return on_write_buffers(std::move(_data_output_cache));
@@ -512,16 +523,19 @@ client::connection::close() {
         });
 }
 
+//将buf加入到_data_output_cache
 void
 client::connection::on_send_new_buffer(temporary_buffer<char> buf) {
     _data_output_cache.push_back(std::move(buf));
 }
 
+//将pkt加入到_media_input_cache
 void
 client::connection::on_receive_new_packet(packet pkt) {
     _media_input_cache.push_back(std::move(pkt));
 }
 
+//将header和payload加入到_data_output_cache
 int
 client::connection::rtmp_handler_send(void* param, const void* header, size_t hlen, const void* payload, size_t plen) {
     client::connection* conn = reinterpret_cast<client::connection*>(param);
@@ -536,6 +550,7 @@ client::connection::rtmp_handler_send(void* param, const void* header, size_t hl
     return hlen + plen;
 }
 
+//将一个script tag的payload加入到_media_input_cache
 int
 client::connection::rtmp_handler_onscript(void* param, const void* payload, size_t len, uint32_t timestamp) {
     client::connection* conn = reinterpret_cast<client::connection*>(param);
@@ -544,6 +559,7 @@ client::connection::rtmp_handler_onscript(void* param, const void* payload, size
     return 0;
 }
 
+//将一个video tag的payload加入到_media_input_cache
 int
 client::connection::rtmp_handler_onvideo(void* param, const void* payload, size_t len, uint32_t timestamp) {
     client::connection* conn = reinterpret_cast<client::connection*>(param);
@@ -551,6 +567,7 @@ client::connection::rtmp_handler_onvideo(void* param, const void* payload, size_
     return 0;
 }
 
+//将一个audio tag的payload加入到_media_input_cache
 int
 client::connection::rtmp_handler_onaudio(void* param, const void* payload, size_t len, uint32_t timestamp) {
     client::connection* conn = reinterpret_cast<client::connection*>(param);

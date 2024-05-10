@@ -16,7 +16,7 @@
 
 namespace amadeus {
 namespace server {
-    
+
 using namespace seastar;
 using namespace std::chrono_literals;
 
@@ -254,84 +254,13 @@ session_list<T>::get() const {
 const sstring transmition::version = "0.0.1";
 
 transmition::transmition() {
-    // _timer.set_callback([this] {
-    //     collect_bandwidth();
-    // });
+    l.info("the trans instance is running on shard: {}", this_shard_id());
 }
 
 void
 transmition::initialize(const global_settings &settings) {
-    // auto url = settings.host_server_url();
-    // if (url.size()) {
-    //     _host_server = std::make_shared<host_server>(url);
 
-    //     auto interval = settings.bandwidth_update_interval();
-    //     if (interval > 0) {
-    //         _timer.rearm_periodic(std::chrono::milliseconds(static_cast<int>(interval * 1000)));
-    //     } else {
-    //         _timer.cancel();
-    //     }
-    // }
-    _timer.cancel();
 }
-
-// static settings_t empty_settings;
-
-// settings_t
-// transmition::settings_for(const sstring &app, const sstring &stream) const {
-//     std::lock_guard<std::mutex> g(_lock);
-
-//     auto name = session::make_session_name(app, stream);
-//     auto it = _stream_settings.find(name);
-//     if (it != _stream_settings.end()) return it->second;
-
-//     return settings_t();
-// }
-
-// future<settings_t>
-// transmition::set_settings_for(const sstring &app, const sstring &stream, const settings_t &settings) {
-//     std::lock_guard<std::mutex> g(_lock);
-
-//     settings_t result;
-
-//     auto name = session::make_session_name(app, stream);
-//     _stream_settings[name] = settings;
-
-//     auto sessions = find_sessions(app, stream);
-//     return do_with(std::move(sessions), std::move(settings), [](auto &sessions, auto &settings) {
-//         return invoke_in(
-//                    sessions,
-//                    [&settings](auto s) {
-//                        s->set_settings(settings);
-//                    })
-//             .then([&settings] {
-//                 return make_ready_future<settings_t>(settings);
-//             });
-//     });
-// }
-
-// future<>
-// transmition::reset_settings_for(const sstring &app, const sstring &stream) {
-//     std::lock_guard<std::mutex> g(_lock);
-
-//     _stream_settings.clear();
-
-//     auto sessions = find_sessions(app, stream);
-//     return do_with(std::move(sessions), [](auto &sessions) {
-//         return invoke_in(sessions, [](auto s) {
-//             s->clear_settings();
-//         });
-//     });
-// }
-
-// const std::unordered_map<sstring, settings_t> &
-// transmition::stream_settings() const {
-//     std::lock_guard<std::mutex> g(_lock);
-
-//     return _stream_settings;
-// }
-
-
 
 future<publisher_ptr>
 transmition::make_valid_publisher(
@@ -369,20 +298,7 @@ transmition::validate(
     const sstring &internal_url,
     const arguments_t &args,
     const sstring &address) {
-    // std::unordered_map<
-    //     sstring,
-    //     sstring,
-    //     seastar::internal::case_insensitive_hash,
-    //     seastar::internal::case_insensitive_cmp>
-    //     headers = {
-    //         {"location", "http://10.23.255.230:8032/stream/remote/3"}
-    // };
-    // return make_exception_future<>(
-    //     httpd::unexpected_status_error(http::reply::status_type::moved_temporarily, headers));
     return make_ready_future<>();
-    // if (!_host_server) return make_ready_future<>();
-
-    // return _host_server->validate(type, prot, fmt, id, app, stream, internal_url, args, address);
 }
 
 future<player_ptr>
@@ -412,8 +328,8 @@ transmition::make_valid_player(
                         } else {
                             // auto urls = http1::get_localtion_urls(e.headers);
                             // if (urls.empty()) {
-                                l.warn("no backsource locations is provided");
-                                return make_ready_future<player_ptr>(nullptr);
+                            l.warn("no backsource locations is provided");
+                            return make_ready_future<player_ptr>(nullptr);
                             // }
                             // return schedule_backsource_for_any_url_async(urls)
                             //     .then([prot, fmt, id, app, stream, internal_url, args, address, media_type, this](
@@ -504,7 +420,7 @@ transmition::add_publisher(publisher_ptr pub) {
 
     bool success = _publishers.add(pub);
     if (success) {
-        //pub->set_settings(settings_for(pub->app(), pub->stream()));
+        // pub->set_settings(settings_for(pub->app(), pub->stream()));
         pub->set_settings();
         pub->set_lifecycle(this);
 
@@ -629,7 +545,7 @@ transmition::add_player(player_ptr plyr) {
 
     bool success = _players.add(plyr);
     if (success) {
-        //plyr->set_settings(settings_for(plyr->app(), plyr->stream()));
+        // plyr->set_settings(settings_for(plyr->app(), plyr->stream()));
         plyr->set_settings();
         plyr->set_lifecycle(this);
 
@@ -782,292 +698,6 @@ transmition::total_count() const {
 }
 
 publisher_ptr
-transmition::schedule_backsource(
-    protocol_t prot,
-    const sstring &app,
-    const sstring &stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address) {
-    return schedule_backsource(prot, app, stream, app, stream, internal_url, args, address);
-}
-
-publisher_ptr
-transmition::schedule_backsource(
-    protocol_t prot,
-    const sstring &app,
-    const sstring &stream,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address) {
-    assert(app.size() && stream.size() && remote_app.size() && remote_stream.size() && address.size());
-
-    auto pub = make_backsource(prot, app, stream, remote_app, remote_stream, internal_url, args, address);
-    if (!pub) return nullptr;
-
-    add_publisher(pub);
-
-    dynamic_pointer_cast<session_ns::client_session>(pub)->start();
-
-    return pub;
-}
-
-publisher_ptr
-transmition::schedule_backsource(const sstring &url_string) {
-    assert(url_string.size());
-
-    auto pub = make_backsource(url_string);
-    if (!pub) return nullptr;
-
-    add_publisher(pub);
-
-    dynamic_pointer_cast<session_ns::client_session>(pub)->start();
-
-    return pub;
-}
-
-future<publisher_ptr>
-transmition::schedule_backsource_for_any_url_async(const std::vector<sstring> &urls) {
-    std::vector<publisher_ptr> pubs = make_backsources(urls);
-    return accept_any_backsource(std::move(pubs));
-}
-
-future<publisher_ptr>
-transmition::accept_any_backsource(std::vector<publisher_ptr> pubs) {
-    std::vector<session_ptr> sessions;
-    std::copy(pubs.begin(), pubs.end(), sessions.begin());
-
-    return accept_any_session(std::move(sessions)).then([this](auto s) {
-        auto pub = dynamic_pointer_cast<session_ns::publish_session>(s);
-        add_publisher(pub);
-
-        return make_ready_future<publisher_ptr>(pub);
-    });
-}
-
-future<session_ptr>
-transmition::accept_any_session(std::vector<session_ptr> sessions) {
-    return do_with(std::move(sessions), [&](std::vector<session_ptr> &sessions) {
-        auto futs = make_session_scheduling_futures(sessions);
-
-        auto done = [&sessions](session_ptr p) {
-            return do_for_each(sessions, [p](session_ptr &s) {
-                if (s == p) return make_ready_future<>();
-
-                return s->invoke<future<> (session_ns::session_impl::*)()>(&session_ns::session_impl::cancel);
-            });
-        };
-        return when_any(futs.begin(), futs.end())
-            .then([](auto &&rt) {
-                return std::move(rt.futures[rt.index]);
-            })
-            .then_wrapped([done = std::move(done)](auto f) {
-                if (f.failed()) {
-                    return done(nullptr).then([e = f.get_exception()] {
-                        return make_exception_future<session_ptr>(std::move(e));
-                    });
-                } else {
-                    auto s = f.get0();
-                    return done(s).then([s] {
-                        l.info("{} found source stream: {}", s ? "" : "not ", s->to_string());
-                        return make_ready_future<session_ptr>(s);
-                    });
-                }
-            });
-    });
-}
-
-std::vector<future<session_ptr>>
-transmition::make_session_scheduling_futures(const std::vector<session_ptr> &sessions) {
-    std::vector<future<session_ptr>> futs;
-    for (auto &s : sessions) {
-        auto ptr = dynamic_pointer_cast<session_ns::client_session>(s);
-        auto f = ptr->start_async().then([s] {
-            return make_ready_future<session_ptr>(s);
-        });
-        futs.push_back(std::move(f));
-    }
-    return futs;
-}
-
-player_ptr
-transmition::schedule_forward(
-    publisher_ptr pub,
-    protocol_t prot,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    const media_type_t media_type) {
-    return schedule_forward(pub, prot, pub->app(), pub->stream(), internal_url, args, address);
-}
-
-player_ptr
-transmition::schedule_forward(
-    publisher_ptr pub,
-    protocol_t prot,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    const media_type_t media_type) {
-    assert(remote_app.size() && remote_stream.size() && address.size() && pub);
-
-    auto size = get_forward_size(pub->app(), pub->stream(), address, pub->format(), prot);
-    if (size > 0) return nullptr;
-
-    auto plyr = make_forward(pub, prot, remote_app, remote_stream, internal_url, args, address, media_type);
-    if (!plyr) return nullptr;
-
-    add_player(plyr);
-
-    dynamic_pointer_cast<session_ns::client_session>(plyr)->start();
-
-    return plyr;
-}
-
-size_t
-transmition::get_backsource_size(
-    const sstring &app, const sstring &stream, const sstring &address, format_t fmt, protocol_t prot) const {
-    return get_publishers_size(app, stream, ownership_t::internal, fmt, prot, [address](auto s) {
-        return address.empty() || s->address() == address;
-    });
-}
-
-size_t
-transmition::get_forward_size(
-    const sstring &app, const sstring &stream, const sstring &address, format_t fmt, protocol_t prot) const {
-    return get_players_size(app, stream, ownership_t::internal, fmt, prot, [address](auto s) {
-        return address.empty() || s->address() == address;
-    });
-}
-
-std::vector<publisher_ptr>
-transmition::make_backsources(const std::vector<sstring> &url_strings) {
-    std::vector<publisher_ptr> pubs;
-    for (auto &url : url_strings) {
-        auto pub = make_backsource(url);
-        if (pub) pubs.push_back(pub);
-    }
-
-    return pubs;
-}
-
-publisher_ptr
-transmition::make_backsource(const sstring &url_string) {
-    sstring app = "";
-    sstring stream = "";
-    sstring address = "";
-    sstring internal_url = "";
-    arguments_t args = {};
-    protocol_t prot = protocol_t::none;
-
-    auto rt = util::parse_stream_url(url_string, app, stream, address, internal_url, args, prot);
-    if (!rt || app.empty() || stream.empty() || address.empty() || prot == protocol_t::none) return nullptr;
-
-    return make_backsource(prot, app, stream, app, stream, internal_url, args, address);
-}
-
-publisher_ptr
-transmition::make_backsource(
-    protocol_t prot,
-    const sstring &app,
-    const sstring &stream,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address) {
-    assert(app.size() && stream.size() && remote_app.size() && remote_stream.size() && address.size());
-
-    publisher_ptr pub = nullptr;
-    switch (prot) {
-        // case protocol_t::TCP:
-        //     pub = std::make_shared<tcp::session::cln::publish_session>(
-        //         app, stream, remote_app, remote_stream, internal_url, args, address);
-        //     break;
-        // case protocol_t::HTTP1:
-        //     pub = std::make_shared<http1::session::cln::publish_session>(
-        //         app, stream, remote_app, remote_stream, internal_url, args, address);
-        //     break;
-        // case protocol_t::HTTP2:
-        // //     return std::make_shared<http2::session::cln::play_session>(pub, app, stream, remote_app, remote_stream,
-        // //     internal_url, args, address);
-        // case protocol_t::HTTP3:
-        //     //     return std::make_shared<session_ns::http3::cln::play_session>(pub, app, stream, remote_app,
-        //     //     remote_stream, internal_url, args, address);
-        //     pub = std::make_shared<http1::session::cln::publish_session>(
-        //         app, stream, remote_app, remote_stream, internal_url, args, address);
-        //     break;
-        case protocol_t::RTMP:
-            pub = std::make_shared<rtmp::session::cln::publish_session>(
-                app, stream, remote_app, remote_stream, internal_url, args, address);
-            break;
-        default: return nullptr;
-    }
-
-    //if (pub) pub->set_settings(settings_for(pub->app(), pub->stream()));
-    pub->set_settings();
-    return pub;
-}
-
-player_ptr
-transmition::make_forward(publisher_ptr pub, const sstring &url_string, const media_type_t media_type) {
-    sstring app = "";
-    sstring stream = "";
-    sstring address = "";
-    sstring internal_url = "";
-    arguments_t args = {};
-    protocol_t prot = protocol_t::none;
-
-    auto rt = util::parse_stream_url(url_string, app, stream, address, internal_url, args, prot);
-    if (!rt || app.empty() || stream.empty() || address.empty() || prot == protocol_t::none) return nullptr;
-
-    return make_forward(pub, prot, app, stream, internal_url, args, address);
-}
-
-player_ptr
-transmition::make_forward(
-    publisher_ptr pub,
-    protocol_t prot,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    const media_type_t media_type) {
-    assert(pub && remote_app.size() && remote_stream.size() && address.size());
-
-    player_ptr plyr = nullptr;
-    switch (prot) {
-        // case protocol_t::TCP:
-        //     plyr = std::make_shared<tcp::session::cln::play_session>(
-        //         pub, remote_app, remote_stream, internal_url, args, address, format_t::BMT, media_type);
-        //     break;
-        // case protocol_t::HTTP1:
-        //     plyr = std::make_shared<http1::session::cln::play_session>(
-        //         pub, remote_app, remote_stream, internal_url, args, address, format_t::BMT, media_type);
-        //     break;
-        // case protocol_t::HTTP2:
-        // case protocol_t::HTTP3:
-        //     plyr = std::make_shared<http1::session::cln::play_session>(
-        //         pub, remote_app, remote_stream, internal_url, args, address, format_t::BMT, media_type);
-        //     break;
-        case protocol_t::RTMP:
-            plyr = std::make_shared<rtmp::session::cln::play_session>(
-                pub, remote_app, remote_stream, internal_url, args, address, format_t::FLV, media_type);
-            break;
-        default: return nullptr;
-    }
-
-    //if (plyr) plyr->set_settings(settings_for(plyr->app(), plyr->stream()));
-    plyr->set_settings();
-    return plyr;
-}
-
-publisher_ptr
 transmition::make_publisher(
     protocol_t prot,
     format_t fmt,
@@ -1106,7 +736,7 @@ transmition::make_publisher(
         default: return nullptr;
     }
 
-    //if (pub) pub->set_settings(settings_for(app, stream));
+    // if (pub) pub->set_settings(settings_for(app, stream));
     pub->set_settings();
     return pub;
 }
@@ -1170,14 +800,14 @@ transmition::make_player(
         default: return nullptr;
     }
 
-    //if (plyr) plyr->set_settings(settings_for(app, stream));
+    // if (plyr) plyr->set_settings(settings_for(app, stream));
     if (plyr) plyr->set_settings();
     return plyr;
 }
 
 void
 transmition::on_add_publisher(publisher_ptr pub) {
-    //schedule_hls_players_if_needs(pub, pub->internal_url(), pub->args(), media_type_t::all);
+    // schedule_hls_players_if_needs(pub, pub->internal_url(), pub->args(), media_type_t::all);
 }
 
 void
@@ -1233,6 +863,7 @@ transmition::stop_publisher_after_player_shutdown(player_ptr plyr, const sstring
         f.get();
     });
 }
+
 /*** session lifecycle ***/
 
 void
@@ -1266,5 +897,5 @@ void
 transmition::on_done(session_ptr s) {
     on_session_end(s);
 }
-}
+} // namespace server
 } // namespace amadeus

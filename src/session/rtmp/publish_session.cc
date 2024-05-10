@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 13:29:35
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-24 14:16:40
+ * @LastEditTime: 2024-05-09 18:02:36
  * @FilePath: /Amadeus/src/session/rtmp/publish_session.cc
  * @Description:
  */
@@ -53,6 +53,7 @@ publish_session::~publish_session() {
     remove_all_rtmp_subscribers();
 }
 
+//不断重复read_once(st, in)
 future<>
 publish_session::start_with(input_stream &in) {
     assert(!in.eof());
@@ -165,6 +166,7 @@ publish_session::on_settings_update() {
     _rtmp_cache.set_min_cache_duration(g_settings().rtmp_min_cache_duration());
 }
 
+//检查pkt是否过大
 bool
 publish_session::validate_packet(const packet &pkt) {
     if (pkt.size() <= g_settings().max_bytes_per_box()) return true;
@@ -172,6 +174,7 @@ publish_session::validate_packet(const packet &pkt) {
     return false;
 }
 
+//从in立马读一个pkt，然后调用on_recv_packet(pkt)
 future<>
 publish_session::read_once(pipe_state &st, input_stream &in) {
     auto tp = std::chrono::steady_clock::now()
@@ -187,6 +190,10 @@ publish_session::read_once(pipe_state &st, input_stream &in) {
         });
 }
 
+/*根据pkt的类型分别处理处理成script、video、audio的frame，
+之后调用add_frame(frame)将其加入到自己的_rtmp_cache
+最后调用publish(frame)给所有subscriber更新
+*/
 future<>
 publish_session::on_recv_packet(pipe_state &st, packet pkt) {
     if (is_complete()) return make_ready_future<>();
@@ -200,6 +207,7 @@ publish_session::on_recv_packet(pipe_state &st, packet pkt) {
     }
 }
 
+//将script tag的pkt解析后封装为frame，并调用add_frame(frame)和publish(frame)
 future<>
 publish_session::on_recv_script(pipe_state &st, packet pkt) {
     auto len = pkt.size();
@@ -233,6 +241,7 @@ publish_session::on_recv_script(pipe_state &st, packet pkt) {
     return make_ready_future<>();
 }
 
+//将video tag的pkt封装为frame，并调用add_frame(frame)和publish(frame)
 future<>
 publish_session::on_recv_video(pipe_state &st, packet pkt) {
     auto len = pkt.size();
@@ -279,6 +288,7 @@ publish_session::on_recv_video(pipe_state &st, packet pkt) {
     return make_ready_future<>();
 }
 
+//将audio tag的pkt封装为frame，并调用add_frame(frame)和publish(frame)
 future<>
 publish_session::on_recv_audio(pipe_state &st, packet pkt) {
     auto len = pkt.size();
@@ -324,6 +334,7 @@ publish_session::on_recv_audio(pipe_state &st, packet pkt) {
     return make_ready_future<>();
 }
 
+//对_subscribers中的每个item，调用on_frame(item, frame)
 future<>
 publish_session::on_frame_for_each_subscriber(frame_ptr frame) {
     _sub_lock.lock();
@@ -337,6 +348,7 @@ publish_session::on_frame_for_each_subscriber(frame_ptr frame) {
     });
 }
 
+//根据item的receiving状态，考虑是将_rtmp_cache的所有帧或者只是frame通过sub->on_frame()发送给item
 future<>
 publish_session::on_frame(std::shared_ptr<subscriber_item> item, frame_ptr frame) {
     auto self = dynamic_pointer_cast<publish_session>(shared_from_this());
@@ -356,6 +368,7 @@ publish_session::on_frame(std::shared_ptr<subscriber_item> item, frame_ptr frame
     });
 }
 
+//调用on_frame_for_each_subscriber给每个subscriber发送frame
 future<>
 publish_session::publish(pipe_state &st, frame_ptr frame) {
     if (validate_cache<rtmp_frame_gop_queue_t>(_rtmp_cache)) {
@@ -368,6 +381,7 @@ publish_session::publish(pipe_state &st, frame_ptr frame) {
     }
 }
 
+//这个函数主要是处理st，之后会调用add_frame(frame)
 bool
 publish_session::add_frame(pipe_state &st, frame_ptr frame) {
     if (frame->is_metadata) {
@@ -387,6 +401,7 @@ publish_session::add_frame(pipe_state &st, frame_ptr frame) {
     return add_frame(frame);
 }
 
+//修正frame的dts
 void
 publish_session::rectify_dts(frame_ptr frame) {
     if (!frame->is_media) return;
@@ -406,6 +421,7 @@ publish_session::rectify_dts(frame_ptr frame) {
     frame->media->set_dts(dts);
 }
 
+//向_rtmp_cache添加frame，并更新session
 bool
 publish_session::add_frame(frame_ptr frame) {
     rectify_dts(frame);
@@ -461,141 +477,6 @@ publish_session::start_with(input_stream &in) {
 
 } // namespace svr
 
-namespace cln {
-
-publish_session::publish_session(
-    const sstring &app,
-    const sstring &stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    format_t fmt)
-: publish_session(app, stream, app, stream, internal_url, args, address, fmt) {}
-
-publish_session::publish_session(
-    const sstring &app,
-    const sstring &stream,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    format_t fmt)
-: publish_session(util::generate_uuid(), app, stream, remote_app, remote_stream, internal_url, args, address, fmt) {}
-
-publish_session::publish_session(
-    const sstring &id,
-    const sstring &app,
-    const sstring &stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    format_t fmt)
-: publish_session(id, app, stream, app, stream, internal_url, args, address, fmt) {}
-
-publish_session::publish_session(
-    const sstring &id,
-    const sstring &app,
-    const sstring &stream,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    format_t fmt)
-: rtmp::session::publish_session(id, app, stream, internal_url, args, address, ownership_t::internal, fmt)
-, session_ns::remote_session(remote_app, remote_stream)
-, util::delay_retry_runner(std::make_unique<util::delay_retry_mode>()) {
-    _auto_complete = false;
-}
-
-void
-publish_session::start() {
-    (void)async([self = static_pointer_cast<publish_session>(shared_from_this())] {
-        self->on_launch();
-        auto f = self->run().finally([self] {
-            self->on_terminate();
-            l.debug("retry end");
-        });
-        f.get();
-    });
-}
-
-future<>
-publish_session::start_with(input_stream &in) {
-    on_connect();
-
-    return rtmp::session::publish_session::start_with(in).then([this] {
-        if (!_finished && _done) return make_exception_future<>(std::runtime_error("need retry"));
-        return make_ready_future<>();
-    });
-}
-
-future<>
-publish_session::try_once(int times, int total_times) {
-    l.info(
-        "{} try to connnect server: {} app: {} stream: {} tcurl: {} times: {}",
-        to_string(),
-        _address,
-        _remote_app,
-        _remote_stream,
-        _internal_url,
-        times);
-
-    auto cln = seastar::make_shared<client>(_address, 1.0f);
-    auto req = request::make(request::mode::play, _remote_app, _remote_stream, _internal_url);
-    req.args = _args;
-
-    return cln
-        ->make_request(
-            std::move(req),
-            [this](const request &req, const reply &rep, input_stream &in) {
-                set_io_bytes_func(
-                    [&req]() {
-                        return req._read_bytes_provider();
-                    },
-                    [&req]() {
-                        return req._write_bytes_provider();
-                    });
-                return start_with(in).then([this] {
-                    if (!_finished && _done) return make_exception_future<>(std::runtime_error("need retry"));
-                    return make_ready_future<>();
-                });
-            })
-        .finally([cln] {
-            return cln->close().handle_exception([](auto e) {}).finally([cln] {});
-        })
-        .handle_exception([this](auto e) {
-            l.warn("{} failed: {}", to_string(), e);
-
-            if (!is_failed() && !is_canceled()) _set_status({status_t::internal_error, fmt::format("{}", e)});
-
-            on_connect_failed(e);
-            return make_exception_future<>(std::move(e));
-        });
-}
-
-void
-publish_session::_cancel() {
-    util::delay_retry_runner::cancel();
-
-    session_ns::session_impl::_cancel();
-}
-
-void
-publish_session::on_retry_finished() {
-    rtmp::session::publish_session::_end();
-}
-
-void
-publish_session::on_settings_update() {
-    rtmp::session::publish_session::on_settings_update();
-
-    _retry_mode->set_max_try_times(INT_MAX);
-    _retry_mode->set_delay(std::chrono::milliseconds(static_cast<uint64_t>(1.0f * 1000)));
-}
-
-} // namespace cln
 
 } // namespace session
 } // namespace rtmp

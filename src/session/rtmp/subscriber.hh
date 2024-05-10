@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 10:42:38
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-24 14:10:10
+ * @LastEditTime: 2024-05-09 17:24:22
  * @FilePath: /Amadeus/src/session/rtmp/subscriber.hh
  * @Description:
  */
@@ -33,7 +33,7 @@ using subscriber_ptr = std::shared_ptr<subscriber>;
 struct subscriber_item {
     subscriber_ptr sub = nullptr;
 
-    bool receiving = false;
+    bool receiving = false; //用于标识subscriber是否第一次从pubblisher订阅数据
 };
 } // namespace session
 } // namespace rtmp

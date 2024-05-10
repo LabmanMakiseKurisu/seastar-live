@@ -17,12 +17,6 @@
 #include "util/retry_runner.hh"
 #include "util/status.hh"
 
-#define VALUE_TO_JSON(JSON, NAME)                    JSON["" #NAME] = NAME;
-#define OBJECT_FUNC_TO_JSON(JSON, NAME, FUNC)        JSON["" #NAME] = FUNC;
-
-#define OBJECT_VARIABLE_TO_JSON(JSON, OBJ_PTR, NAME) JSON["" #NAME] = OBJ_PTR->_##NAME;
-#define OBJECT_PROPERTY_TO_JSON(JSON, OBJ_PTR, NAME) JSON["" #NAME] = OBJ_PTR->NAME;
-
 namespace amadeus {
 
 using arguments_t = std::unordered_map<sstring, sstring>;
@@ -47,136 +41,7 @@ class pipe {
     virtual future<> fail(status st) = 0;
 };
 
-struct collection {
-    std::vector<int64_t> video_frame_rates;
-    std::vector<int64_t> audio_frame_rates;
-
-    std::vector<int64_t> video_bitrates;
-    std::vector<int64_t> audio_bitrates;
-
-    int64_t video_frame_rate = 0;
-    int64_t audio_frame_rate = 0;
-    int64_t video_bitrate = 0;
-    int64_t audio_bitrate = 0;
-    int64_t total_bytes = 0;
-    int64_t total_io_bytes = 0;
-    int64_t total_recv_io_bytes = 0;
-    int64_t total_sent_io_bytes = 0;
-    std::chrono::system_clock::time_point timestamp = std::chrono::system_clock::now();
-    std::chrono::system_clock::time_point group_timestamp = std::chrono::system_clock::now();
-    std::chrono::system_clock::time_point moni_timestamp = std::chrono::system_clock::now();
-    
-    collection() = default;
-    virtual ~collection() = default;
-
-    collection(collection &&x)
-    : video_frame_rates(std::move(x.video_frame_rates))
-    , audio_frame_rates(std::move(x.audio_frame_rates))
-    , video_bitrates(std::move(x.video_bitrates))
-    , audio_bitrates(std::move(x.audio_bitrates))
-    , video_frame_rate(x.video_frame_rate)
-    , audio_frame_rate(x.audio_frame_rate)
-    , video_bitrate(x.video_bitrate)
-    , audio_bitrate(x.audio_bitrate)
-    , total_bytes(x.total_bytes)
-    , total_io_bytes(x.total_io_bytes)
-    , timestamp(x.timestamp)
-    , group_timestamp(x.group_timestamp)
-    , moni_timestamp(x.moni_timestamp) {
-        x.video_frame_rate = 0;
-        x.audio_frame_rate = 0;
-        x.video_bitrate = 0;
-        x.audio_bitrate = 0;
-        x.total_bytes = 0;
-        x.total_io_bytes = 0;
-        x.timestamp = std::chrono::system_clock::now();
-        x.group_timestamp = std::chrono::system_clock::now();
-        x.moni_timestamp = std::chrono::system_clock::now();
-    }
-
-    collection &operator=(collection &&x) {
-        video_frame_rates = std::move(x.video_frame_rates);
-        audio_frame_rates = std::move(x.audio_frame_rates);
-        video_bitrates = std::move(x.video_bitrates);
-        audio_bitrates = std::move(x.audio_bitrates);
-        video_frame_rate = x.video_frame_rate;
-        audio_frame_rate = x.audio_frame_rate;
-        video_bitrate = x.video_bitrate;
-        audio_bitrate = x.audio_bitrate;
-        total_bytes = x.total_bytes;
-        total_io_bytes = x.total_io_bytes;
-        timestamp = x.timestamp;
-        group_timestamp = x.group_timestamp;
-        moni_timestamp = x.moni_timestamp;
-
-        x.video_frame_rate = 0;
-        x.audio_frame_rate = 0;
-        x.video_bitrate = 0;
-        x.audio_bitrate = 0;
-        x.total_bytes = 0;
-        x.total_io_bytes = 0;
-        x.timestamp = std::chrono::system_clock::now();
-        x.group_timestamp = std::chrono::system_clock::now();
-        x.moni_timestamp = std::chrono::system_clock::now();
-        return *this;
-    }
-};
-
 extern sstring make_session_name(const sstring &app, const sstring &stream);
-
-class remote_session {
- public:
-    remote_session(const sstring &app, const sstring &stream)
-    : _remote_app(app)
-    , _remote_stream(stream) {}
-
-    virtual ~remote_session() = default;
-
-    const sstring &remote_app() {
-        return _remote_app;
-    }
-
-    const sstring &remote_stream() {
-        return _remote_stream;
-    }
-
- protected:
-    sstring _remote_app;
-    sstring _remote_stream;
-};
-
-class client_session {
- public:
-    virtual ~client_session() = default;
-
-    virtual void start() = 0;
-
-    virtual future<> start_async() {
-        start();
-
-        return connected_future();
-    }
-
-    virtual future<> connected_future() {
-        _connected = std::make_optional(promise<>());
-
-        return _connected->get_future();
-    }
-
- protected:
-    void on_connect() {
-        if (_connected != std::nullopt) _connected->set_value();
-        _connected = std::nullopt;
-    }
-
-    template <typename E>
-    void on_connect_failed(E e) {
-        if (_connected != std::nullopt) _connected->set_exception(std::move(e));
-        _connected = std::nullopt;
-    }
-
-    std::optional<promise<>> _connected = std::nullopt;
-};
 
 class session_impl;
 using session_ptr = std::shared_ptr<session::session_impl>;
@@ -194,7 +59,7 @@ class lifecycle {
 class session_impl : public pipe,
                      public std::enable_shared_from_this<session_impl> {
  protected:
-    shard_id _cpu;
+    shard_id _cpu; //this_shard_id
     sstring _id;
     sstring _index;
     sstring _sequence;
@@ -227,9 +92,6 @@ class session_impl : public pipe,
     std::atomic_bool _auto_complete = true;
     std::atomic_bool _zero_copy_supported = false;
     status _status;
-
-    collection _current;
-    std::deque<collection> _collections;
  public:
     session_impl(
         const sstring &app,
@@ -355,8 +217,6 @@ class session_impl : public pipe,
     void on_meta(metadata_ptr frame);
 
     void print_status(status_t sc);
-    void print_access_log();
-    seastar::timer<> _access_log_timer;
 
     const global_settings &g_settings() const;
 
@@ -392,8 +252,6 @@ invoke_in(Container &c, Func func) {
 
 using pipe_ptr = std::shared_ptr<session::pipe>;
 using session_ptr = std::shared_ptr<session::session_impl>;
-using remote_session_ptr = std::shared_ptr<session::remote_session>;
-using client_session_ptr = std::shared_ptr<session::client_session>;
 
 std::ostream &operator<<(std::ostream &os, session::session_impl *v);
 std::ostream &operator<<(std::ostream &os, const session::session_impl &v);

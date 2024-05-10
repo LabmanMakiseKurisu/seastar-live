@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-24 16:04:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-24 16:36:49
+ * @LastEditTime: 2024-05-10 11:34:21
  * @FilePath: /Amadeus/src/frame/metadata_base.hh
  * @Description:
  */
@@ -91,6 +91,7 @@ class metadata_base {
         return true;
     }
 
+    //获取支持的媒体类型
     media_type_t media_options() const {
         media_type_t options = media_type_t::none;
         if (video.is_enabled()) options |= media_type_t::video;

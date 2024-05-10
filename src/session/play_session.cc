@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-22 19:09:03
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 10:36:17
+ * @LastEditTime: 2024-05-10 12:01:28
  * @FilePath: /Amadeus/src/session/play_session.cc
  * @Description:
  *
@@ -72,6 +72,7 @@ play_session::play_session(
     assert(pub);
 
     _type = type_t::play;
+    l.info("the play_session instance is running on shard: {}", this_shard_id());
 }
 
 play_session::~play_session() {}
@@ -324,108 +325,6 @@ void
 play_session::unsubscribe() {
     if (_pub) _pub->remove_subscriber(std::dynamic_pointer_cast<subscriber>(shared_from_this()));
 }
-
-namespace cln {
-
-play_session::play_session(
-    publisher_ptr pub,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    ownership_t os,
-    format_t fmt,
-    media_type_t media_type,
-    protocol_t prot)
-: play_session(pub, pub->app(), pub->stream(), internal_url, args, address, os, fmt, media_type, prot) {}
-
-play_session::play_session(
-    publisher_ptr pub,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    ownership_t os,
-    format_t fmt,
-    media_type_t media_type,
-    protocol_t prot)
-: play_session(
-    pub, util::generate_uuid(), remote_app, remote_stream, internal_url, args, address, os, fmt, media_type, prot) {}
-
-play_session::play_session(
-    publisher_ptr pub,
-    const sstring &id,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    ownership_t os,
-    format_t fmt,
-    media_type_t media_type,
-    protocol_t prot)
-: play_session(pub, id, pub->app(), pub->stream(), internal_url, args, address, os, fmt, media_type, prot) {}
-
-play_session::play_session(
-    publisher_ptr pub,
-    const sstring &id,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    ownership_t os,
-    format_t fmt,
-    media_type_t media_type,
-    protocol_t prot)
-: session::play_session(pub, id, pub->app(), pub->stream(), internal_url, args, address, os, fmt, media_type, prot)
-, session::remote_session(remote_app, remote_stream)
-, util::delay_retry_runner(std::make_unique<util::delay_retry_mode>()) {
-    _auto_complete = false;
-}
-
-future<>
-play_session::start_with(output_stream<char> &out) {
-    on_connect();
-
-    return session::play_session::start_with(out).then([&out, this] {
-        if (!_finished && _done) return make_exception_future<>(std::runtime_error("need retry"));
-        return make_ready_future<>();
-    });
-}
-
-void
-play_session::start() {
-    (void)async([self = static_pointer_cast<play_session>(shared_from_this())] {
-        self->on_launch();
-        auto f = self->run().finally([self] {
-            self->on_terminate();
-            l.debug("retry end");
-        });
-        f.get();
-    });
-}
-
-void
-play_session::on_retry_finished() {
-    session::play_session::_end();
-}
-
-void
-play_session::_cancel() {
-    util::delay_retry_runner::cancel();
-
-    session::session_impl::_cancel();
-}
-
-void
-play_session::on_settings_update() {
-    session::play_session::on_settings_update();
-
-    _retry_mode->set_max_try_times(INT_MAX);
-    _retry_mode->set_delay(std::chrono::milliseconds(static_cast<uint64_t>(1.0 * 1000)));
-}
-
-
-} // namespace cln
 
 namespace svr {
 

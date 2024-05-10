@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 14:00:04
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 14:45:11
+ * @LastEditTime: 2024-05-10 11:41:19
  * @FilePath: /Amadeus/src/session/rtmp/play_session.cc
  * @Description:
  */
@@ -74,6 +74,7 @@ play_session::play_session(
     _rtmp_pub = std::dynamic_pointer_cast<publish_session>(pub);
 }
 
+//不断调用write_once(st, out)
 future<>
 play_session::start_with(output_stream &out) {
     on_begin();
@@ -181,6 +182,8 @@ play_session::cpu(rtmp_publisher_ptr pub) const {
     return session_ns::session_impl::cpu();
 }
 
+//对frames中的每个frame都调用on_frame(frame)
+//当frames全部处理结束后，调用_rtmp_queue.notify_not_empty()
 future<>
 play_session::on_frames(rtmp_publisher_ptr pub, std::vector<frame_ptr> &frames) {
     if (_rtmp_pub != pub || is_complete()) return make_ready_future();
@@ -200,6 +203,7 @@ play_session::on_frames(rtmp_publisher_ptr pub, std::vector<frame_ptr> &frames) 
         });
 }
 
+//把_rtmp_queue中的frame都取出来，放入out中等待发送
 future<>
 play_session::write_once(pipe_state &st, output_stream &out) {
     return with_frames<frame_ptr>(_rtmp_queue, [&st, &out, this](auto frames) {
@@ -211,6 +215,7 @@ play_session::write_once(pipe_state &st, output_stream &out) {
     });
 }
 
+//根据frame的类型调用write_metadata或write_media
 future<>
 play_session::write_frame(pipe_state &st, output_stream &out, frame_ptr frame) {
     if (frame->is_metadata) {
@@ -227,6 +232,7 @@ play_session::write_frame(pipe_state &st, output_stream &out, frame_ptr frame) {
     }
 }
 
+//写script和紧接着的音视频配置tag到out中
 future<>
 play_session::write_metadata(output_stream &out, metadata_ptr metadata) {
     auto media_options = metadata->media_options();
@@ -249,6 +255,7 @@ play_session::write_metadata(output_stream &out, metadata_ptr metadata) {
         });
 }
 
+//写音视频配置tag到out中
 future<>
 play_session::write_audio_metadata(output_stream &out, const flv::audio_meta_t &audio) {
     if (!audio.is_enabled()) return make_ready_future<>();
@@ -259,6 +266,7 @@ play_session::write_audio_metadata(output_stream &out, const flv::audio_meta_t &
     return write(out, packet::make_audio(std::move(ahb), 0));
 }
 
+//写音视频配置tag到out中
 future<>
 play_session::write_video_metadata(output_stream &out, const flv::video_meta_t &video) {
     if (!video.is_enabled()) return make_ready_future<>();
@@ -291,6 +299,7 @@ play_session::write_media(output_stream &out, metadata_ptr metadata, media_ptr m
     }
 }
 
+//写入frame到out中
 future<>
 play_session::write(output_stream &out, packet frame) {
     return out.write(std::move(frame)).then([&out] {
@@ -318,6 +327,7 @@ play_session::unsubscribe() {
     }
 }
 
+//更新session信息并且向_rtmp_queue中添加
 void
 play_session::on_frame(frame_ptr frame) {
     if (is_complete()) return;
@@ -419,142 +429,6 @@ play_session::start_with(output_stream &out) {
 
 } // namespace svr
 
-namespace cln {
-
-using namespace seastar;
-using namespace std::literals::chrono_literals;
-
-play_session::play_session(
-    publisher_ptr pub,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    format_t fmt,
-    media_type_t media_type)
-: play_session(pub, pub->app(), pub->stream(), internal_url, args, address, fmt, media_type) {}
-
-play_session::play_session(
-    publisher_ptr pub,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    format_t fmt,
-    media_type_t media_type)
-: play_session(pub, util::generate_uuid(), remote_app, remote_stream, internal_url, args, address, fmt, media_type) {}
-
-play_session::play_session(
-    publisher_ptr pub,
-    const sstring &id,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    format_t fmt,
-    media_type_t media_type)
-: play_session(pub, id, pub->app(), pub->stream(), internal_url, args, address, fmt, media_type) {}
-
-play_session::play_session(
-    publisher_ptr pub,
-    const sstring &id,
-    const sstring &remote_app,
-    const sstring &remote_stream,
-    const sstring &internal_url,
-    const arguments_t &args,
-    const sstring &address,
-    format_t fmt,
-    media_type_t media_type)
-: rtmp::session::play_session(
-    pub, id, pub->app(), pub->stream(), internal_url, args, address, ownership_t::internal, fmt, media_type)
-, session_ns::remote_session(remote_app, remote_stream)
-, util::delay_retry_runner(std::make_unique<util::delay_retry_mode>()) {
-    _auto_complete = false;
-}
-
-void
-play_session::start() {
-    (void)async([self = static_pointer_cast<play_session>(shared_from_this())] {
-        self->on_launch();
-        auto f = self->run().finally([self] {
-            self->on_terminate();
-            l.debug("retry end");
-        });
-        f.get();
-    });
-}
-
-future<>
-play_session::start_with(output_stream &out) {
-    on_connect();
-
-    return rtmp::session::play_session::start_with(out).then([this] {
-        if (!_finished && _done) return make_exception_future<>(std::runtime_error("need retry"));
-        return make_ready_future<>();
-    });
-}
-
-future<>
-play_session::try_once(int times, int total_times) {
-    l.info(
-        "{} try to connnect server: {} app: {} stream: {} tcurl: {} times: {}",
-        to_string(),
-        _address,
-        _remote_app,
-        _remote_stream,
-        _internal_url,
-        times);
-
-    auto cln = seastar::make_shared<client>(_address, 1.0f);
-    auto req = request::make(request::mode::publish, _remote_app, _remote_stream, _internal_url);
-    req.args = _args;
-
-    req.write_body([this](const request &req, output_stream &out) {
-        set_io_bytes_func(
-            [&req]() {
-                return req._read_bytes_provider();
-            },
-            [&req]() {
-                return req._write_bytes_provider();
-            });
-        return start_with(out);
-    });
-
-    return cln->make_request(std::move(req))
-        .finally([cln] {
-            return cln->close().handle_exception([](auto e) {}).finally([cln] {});
-        })
-        .handle_exception([this](auto e) {
-            l.warn("{} failed: {}", to_string(), e);
-
-            if (!is_failed() && !is_canceled()) _set_status({status_t::internal_error, fmt::format("{}", e)});
-
-            on_connect_failed(e);
-            return make_exception_future<>(std::move(e));
-        });
-}
-
-void
-play_session::on_retry_finished() {
-    rtmp::session::play_session::_end();
-}
-
-void
-play_session::_cancel() {
-    util::delay_retry_runner::cancel();
-
-    session_ns::session_impl::_cancel();
-}
-
-void
-play_session::on_settings_update() {
-    rtmp::session::play_session::on_settings_update();
-
-    _retry_mode->set_max_try_times(INT_MAX);
-    _retry_mode->set_delay(std::chrono::milliseconds(static_cast<uint64_t>(1.0f * 1000)));
-}
-
-
-} // namespace cln
 
 } // namespace session
 } // namespace rtmp

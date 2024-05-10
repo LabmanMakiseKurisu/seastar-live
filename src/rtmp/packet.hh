@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 10:51:20
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-24 19:33:34
+ * @LastEditTime: 2024-05-08 16:55:53
  * @FilePath: /Amadeus/src/rtmp/packet.hh
  * @Description:
  */
@@ -22,9 +22,9 @@ struct packet {
         video,
         audio,
         script,
-    } type = video;
+    } type = video;//tag的类型
 
-    temporary_buffer<uint8_t> data; 
+    temporary_buffer<uint8_t> data; //tag data
     int64_t dts = 0;
 
     packet()

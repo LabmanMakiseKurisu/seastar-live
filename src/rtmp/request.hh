@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 10:51:20
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-29 15:24:54
+ * @LastEditTime: 2024-05-07 15:49:40
  * @FilePath: /Amadeus/src/rtmp/request.hh
  * @Description:
  */
@@ -57,9 +57,9 @@ struct request {
     double start = 0;           // 起始时间戳
     double duration = 0;        // 时长
     uint8_t reset = 0;          // for server play
-    sstring tcurl; //代表请求的转发URL
+    sstring tcurl; //服务器 URL
     std::unordered_map<sstring, sstring> args; //请求参数
-    noncopyable_function<future<>(const request& req, input_stream&)> _body_reader;  //handler 效果未知
+    noncopyable_function<future<>(const request& req, input_stream&)> _body_reader;  //handler 从输入流读取到req
     noncopyable_function<future<>(const request& req, output_stream&)> _body_writer; //handler 写入请求体到输出流
     noncopyable_function<size_t()> _read_bytes_provider;  //handler 统计读入的字节数 
     noncopyable_function<size_t()> _write_bytes_provider; //handler 统计写入的字节数

@@ -23,7 +23,11 @@ namespace internal {
 using namespace seastar;
 
 class client;
-
+/*
+本类的功能是维护internal::client的_total_connections
+在构造和析构时，都会调用client::_total_connections的增加或减少
+此外，提供了在connection类中访问client类的接口
+*/
 class client_ref {
     client* _c;
 
@@ -79,29 +83,29 @@ class client {
     class connection : public seastar::enable_shared_from_this<connection> {
         friend class client;
 
-        ::rtmp_client_t* _rtmp_cln = nullptr;
+        ::rtmp_client_t* _rtmp_cln = nullptr; //用于管理 RTMP 客户端的状态和操作
 
-        connected_socket _fd;
-        seastar::input_stream<char> _read_buf;
-        seastar::output_stream<char> _write_buf;
-        size_t _recv_bytes = 0;
-        size_t _send_bytes = 0;
-        future<> _closed;
-        internal::client_ref _ref;
+        connected_socket _fd; //已连接的套接字，用于与服务器通信
+        seastar::input_stream<char> _read_buf; //输入流，用于从套接字读取数据
+        seastar::output_stream<char> _write_buf; //输出流，用于向套接字写入数据
+        size_t _recv_bytes = 0; //记录接收到的字节数
+        size_t _send_bytes = 0; //记录发送的字节数
+        future<> _closed; //表示连接是否关闭的future
+        internal::client_ref _ref; //内部客户端引用，用于访问客户端对象
 
-        std::optional<seastar::promise<reply_ptr>> _handshake;
+        std::optional<seastar::promise<reply_ptr>> _handshake; //个可选的 promise 对象，用于处理连接的握手过程
 
-        std::deque<packet> _media_input_cache;
+        std::deque<packet> _media_input_cache; //用于缓存从套接字接收到的数据包
         shared_mutex _flush_in_lock;
 
-        std::deque<temporary_buffer<char>> _data_output_cache;
+        std::deque<temporary_buffer<char>> _data_output_cache; //用于缓存要发送到套接字的数据包
         shared_mutex _flush_out_lock;
 
-        seastar::queue<packet> _media_input;
-        seastar::queue<packet> _media_output;
+        seastar::queue<packet> _media_input; //管理从媒体数据源接收到的数据包队列
+        seastar::queue<packet> _media_output; //管理将发送到媒体数据源的数据包队列
 
-        input_stream _input;
-        output_stream _output;
+        input_stream _input; //输入流，连接到 _media_input
+        output_stream _output; //输出流，连接到 _media_output
 
         bool _stopped = false;
         bool _done = false;

@@ -162,67 +162,6 @@ class play_session : public rtmp::session::play_session {
 
 } // namespace svr
 
-namespace cln {
-
-class play_session : public rtmp::session::play_session,
-                     public session_ns::client_session,
-                     public session_ns::remote_session,
-                     public util::delay_retry_runner {
- public:
-    play_session(
-        publisher_ptr pub,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        format_t fmt = format_t::FLV,
-        media_type_t media_type = media_type_t::all);
-
-    play_session(
-        publisher_ptr pub,
-        const sstring &remote_app,
-        const sstring &remote_stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        format_t fmt = format_t::FLV,
-        media_type_t media_type = media_type_t::all);
-
-    play_session(
-        publisher_ptr pub,
-        const sstring &id,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        format_t fmt = format_t::FLV,
-        media_type_t media_type = media_type_t::all);
-
-    play_session(
-        publisher_ptr pub,
-        const sstring &id,
-        const sstring &remote_app,
-        const sstring &remote_stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        format_t fmt = format_t::FLV,
-        media_type_t media_type = media_type_t::all);
-
-    virtual ~play_session() = default;
-
-    virtual void start() override;
-
-    virtual future<> start_with(output_stream &out) override;
-
-
- protected:
-    virtual future<> try_once(int times, int total_times) override;
-
-    virtual void _cancel() override;
-
-    virtual void on_retry_finished() override;
-    virtual void on_settings_update() override;
-};
-} // namespace cln
 } // namespace session
 } // namespace rtmp
 

@@ -32,6 +32,7 @@ class server;
 using request_ptr = std::unique_ptr<request>;
 using reply_ptr = std::unique_ptr<reply>;
 
+//rtmp server端的connection
 class connection : public boost::intrusive::list_base_hook<> {
  public:
     connection(server& server, connected_socket&& fd, socket_address remote_address);
@@ -43,9 +44,9 @@ class connection : public boost::intrusive::list_base_hook<> {
     future<> close();
 
  protected:
-    server& _server;
-    connected_socket _fd;
-    socket_address _remote_address;
+    server& _server; //server的引用
+    connected_socket _fd; //就绪的tcp套接字
+    socket_address _remote_address; //远程地址
 
     seastar::input_stream<char> _read_buf;
     seastar::output_stream<char> _write_buf;
@@ -157,13 +158,13 @@ class server {
     uint64_t _recv_bytes = 0;
     uint64_t _send_bytes = 0;
 
-    gate _task_gate;
+    gate _task_gate; //控制do_accepts函数的启停
 
  public:
     routes _routes;
     using connection = rtmp::connection;
 
-    explicit server(const sstring& name) {}
+    explicit server(const sstring& name);
 
     future<> listen(socket_address addr, listen_options lo);
     future<> listen(socket_address addr);
@@ -187,19 +188,8 @@ class server {
     friend class rtmp::connection;
 };
 
-/*
- * A helper class to start, set and listen an rtmp server
- * typical use would be:
- *
- * auto server = new server_control();
- *                 server->start().then([server] {
- *                 server->set_routes(set_routes);
- *              }).then([server, port] {
- *                  server->listen(port);
- *              }).then([port] {
- *                  std::cout << "Seastar HTTP server listening on port " << port << " ...\n";
- *              });
- */
+
+//统一管理所有核心的服务启停，实现负载均衡
 class server_control {
     using rtmp_server = amadeus::rtmp::server;
     std::unique_ptr<distributed<rtmp_server>> _server_dist;

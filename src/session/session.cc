@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-22 15:48:35
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-24 10:25:59
+ * @LastEditTime: 2024-05-10 15:52:47
  * @FilePath: /Amadeus/src/session/session.cc
  * @Description:
  */
@@ -334,7 +334,6 @@ session_impl::on_begin() {
 
 void
 session_impl::on_end() {
-    _access_log_timer.cancel();
 
     print_status(status_t::disconnect);
 }
@@ -394,10 +393,6 @@ session_impl::print_status(status_t sc) {
         sc);
 }
 
-void
-session_impl::print_access_log() {
-    print_status(status_t::connect);
-}
 
 const global_settings &
 session_impl::g_settings() const {

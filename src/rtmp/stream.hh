@@ -296,7 +296,7 @@ class media_data_source_impl : public data_source_impl {
     media_data_source_impl(seastar::queue<packet>& data)
     : _data(data) {}
 
-    //从_data中读pkt
+    //从_data取出一个pkt
     virtual future<packet> get() override {
         if (_closed) return make_ready_future<packet>(packet());
         return _data.pop_eventually();

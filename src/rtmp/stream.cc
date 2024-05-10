@@ -36,7 +36,7 @@ future<> input_stream::consume(Consumer& consumer) noexcept(std::is_nothrow_move
     return consume(std::ref(consumer));
 }
 
-//从_fd中读pkt到_pkt
+//从_fd中读pkt
 future<packet>
 input_stream::read() noexcept {
     if (_eof) return make_ready_future<packet>();

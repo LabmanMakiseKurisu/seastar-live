@@ -33,6 +33,7 @@
 #include "rtmp/log.hh"
 #include "rtmp/reply.hh"
 #include "rtmp/unvarnished_stream.hh"
+#include "rtmp.hh"
 namespace amadeus {
 namespace rtmp {
 
@@ -47,6 +48,7 @@ server_control::generate_server_name() {
     return seastar::format("rtmp-{}", idgen++);
 }
 
+//创建_rtmp_svr，并设置其param和handler
 rtmp_server_t*
 connection::make_rtmp_server(connection* conn) {
     struct rtmp_server_handler_t handler;
@@ -101,6 +103,7 @@ connection::~connection() {
     l.info("connection desctruct {}", _remote_address);
 }
 
+//维护新连接的信息
 void
 connection::on_new_connection() {
     ++_server._total_connections;
@@ -110,18 +113,21 @@ connection::on_new_connection() {
     _server._connections.push_back(*this);
 }
 
+//维护接收的字节数
 void
 connection::on_recv(size_t bytes) {
     _recv_bytes += bytes;
     _server._recv_bytes += bytes;
 }
 
+//维护发送的字节数
 void
 connection::on_send(size_t bytes) {
     _send_bytes += bytes;
     _server._send_bytes += bytes;
 }
 
+//生产一个reply，只有状态没有数据，此函数未被调用过
 reply_ptr
 connection::make_reply(reply::status_type status) {
     auto rep = std::make_unique<reply>();
@@ -130,6 +136,7 @@ connection::make_reply(reply::status_type status) {
     return rep;
 }
 
+//根据req，执行server._routes.handle，生成对应的reply
 future<reply_ptr>
 connection::generate_reply(std::unique_ptr<rtmp::request>& req) {
     auto resp = std::make_unique<rtmp::reply>();
@@ -142,6 +149,7 @@ connection::generate_reply(std::unique_ptr<rtmp::request>& req) {
     return _server._routes.handle(req->_mode, req, std::move(resp));
 }
 
+//调用req->_body_reader(*req, _input)
 future<>
 connection::maybe_read_body(request_ptr req) {
     if (!req->_body_reader) return make_ready_future<>();
@@ -161,6 +169,7 @@ connection::maybe_read_body(request_ptr req) {
     });
 }
 
+//调用rep>_body_reader(*rep, _output)
 future<>
 connection::maybe_write_body(reply_ptr rep) {
     if (!rep->_body_writer) return make_ready_future<>();
@@ -181,6 +190,10 @@ connection::maybe_write_body(reply_ptr rep) {
     });
 }
 
+//初始化_handshake，生成对应的reqrep
+/**
+ 这个函数首先创建_handshake，等_handshake完成后，会处理其携带的req
+*/
 future<reqrep>
 connection::handshake() {
     _handshake = std::make_optional(seastar::promise<request_ptr>());
@@ -216,6 +229,7 @@ connection::read_one() {
         });
 }
 
+//调用input_loop(), output_loop(), read_one()
 future<>
 connection::process() {
     // Launch read and write "threads" simultaneously:
@@ -240,6 +254,7 @@ connection::process() {
     });
 }
 
+//把pkts依次放入到_media_input
 future<>
 connection::on_read_packets(std::deque<packet> pkts) {
     if (pkts.empty()) return make_ready_future<>();
@@ -251,6 +266,7 @@ connection::on_read_packets(std::deque<packet> pkts) {
     });
 }
 
+//把bufs依次放入到_write_buf并执行_write_buf.flush()
 future<>
 connection::on_write_buffers(std::deque<temporary_buffer<char>> bufs) {
     if (_done || bufs.empty()) return make_ready_future<>();
@@ -265,11 +281,13 @@ connection::on_write_buffers(std::deque<temporary_buffer<char>> bufs) {
     });
 }
 
+//调用on_read_packets(std::move(_media_input_cache))
 future<>
 connection::flush_in() {
     return on_read_packets(std::move(_media_input_cache));
 }
 
+//调用on_write_buffers(std::move(_data_output_cache))
 future<>
 connection::flush_out() {
     return on_write_buffers(std::move(_data_output_cache)).handle_exception([this](auto e) {
@@ -278,6 +296,7 @@ connection::flush_out() {
     });
 }
 
+//依次执行flush_in和flush_out
 future<>
 connection::flush() {
     return flush_in().then_wrapped([this](auto f) {
@@ -296,6 +315,7 @@ connection::flush() {
     });
 }
 
+//parse rtmp buffer，结果存到_media_input_cache
 future<>
 connection::on_read_buf(temporary_buffer<char> buf) {
     try {
@@ -310,6 +330,7 @@ connection::on_read_buf(temporary_buffer<char> buf) {
     }
 }
 
+//调用send(std::move(pkt))
 future<>
 connection::on_send_packet(packet pkt) {
     try {
@@ -320,6 +341,7 @@ connection::on_send_packet(packet pkt) {
     } catch (...) { return current_exception_as_future(); }
 }
 
+//调用stop_once()，然后关闭_input和_output
 future<>
 connection::close_streams() {
     return stop_once()
@@ -347,6 +369,7 @@ connection::abort(std::exception_ptr e) {
     _media_output.abort(e);
 }
 
+//握手失败后调用
 void
 connection::on_handshake(std::exception e) {
     on_handshake(std::make_exception_ptr(e));
@@ -360,6 +383,7 @@ connection::on_handshake(std::exception_ptr e) {
     }
 }
 
+//握手失败后调用
 void
 connection::on_handshake(std::nullptr_t n) {
     if (_handshake != std::nullopt) {
@@ -368,6 +392,7 @@ connection::on_handshake(std::nullptr_t n) {
     }
 }
 
+//握手成功后调用，贤设置_handshake的futrue使得handshake能执行，再重置_handshake等待下一次连接
 void
 connection::on_handshake(request_ptr req) {
     if (_handshake != std::nullopt) {
@@ -378,6 +403,7 @@ connection::on_handshake(request_ptr req) {
     }
 }
 
+//循环不断_read_buf中读取数据，然后调用on_read_buf存入_media_input_cache，再执行flush
 future<>
 connection::input_loop() {
     return do_with(false, [this](bool& done) {
@@ -439,7 +465,7 @@ connection::input_loop() {
             });
     });
 }
-
+//不断从_media_output取出一个pkt，然后调用on_send_packet写入_data_output_cache，最后执行flush
 future<>
 connection::output_loop() {
     return do_with(false, [this](bool& done) {
@@ -501,6 +527,7 @@ connection::output_loop() {
     });
 }
 
+//将pkt转为buf后写入_data_output_cache
 int
 connection::send(packet pkt) {
     if (pkt.type == packet::type_t::video) {
@@ -675,11 +702,13 @@ connection::on_get_duration(const char* app, const char* stream, double* duratio
     return 0;
 }
 
+//向_data_output_cache插入buf
 void
 connection::on_send_new_buffer(temporary_buffer<char> buf) {
     _data_output_cache.push_back(std::move(buf));
 }
 
+//向_media_input_cache插入pkt
 void
 connection::on_receive_new_packet(packet pkt) {
     _media_input_cache.push_back(std::move(pkt));
@@ -687,6 +716,7 @@ connection::on_receive_new_packet(packet pkt) {
 
 // RTMP callbacks
 
+//把header和payload按照次序放入_data_output_cache
 int
 connection::rtmp_handler_send(void* param, const void* header, size_t hlen, const void* payload, size_t plen) {
     connection* conn = reinterpret_cast<connection*>(param);
@@ -701,6 +731,7 @@ connection::rtmp_handler_send(void* param, const void* header, size_t hlen, cons
     return hlen + plen;
 }
 
+//用payload创建script packet，再将其放入_media_input_cache
 int
 connection::rtmp_handler_onscript(void* param, const void* payload, size_t len, uint32_t timestamp) {
     connection* conn = reinterpret_cast<connection*>(param);
@@ -710,6 +741,7 @@ connection::rtmp_handler_onscript(void* param, const void* payload, size_t len, 
     return 0;
 }
 
+//用payload创建video packet，再将其放入_media_input_cache
 int
 connection::rtmp_handler_onvideo(void* param, const void* payload, size_t len, uint32_t timestamp) {
     connection* conn = reinterpret_cast<connection*>(param);
@@ -717,6 +749,7 @@ connection::rtmp_handler_onvideo(void* param, const void* payload, size_t len, u
     return 0;
 }
 
+//用payload创建audio packet，再将其放入_media_input_cache
 int
 connection::rtmp_handler_onaudio(void* param, const void* payload, size_t len, uint32_t timestamp) {
     connection* conn = reinterpret_cast<connection*>(param);
@@ -724,6 +757,7 @@ connection::rtmp_handler_onaudio(void* param, const void* payload, size_t len, u
     return 0;
 }
 
+//调用this->on_play
 int
 connection::rtmp_handler_onplay(
     void* param, const char* app, const char* stream, double start, double duration, uint8_t reset, const char* tcurl) {
@@ -731,6 +765,7 @@ connection::rtmp_handler_onplay(
     return conn->on_play(app, stream, start, duration, reset, tcurl);
 }
 
+//调用this->on_publish
 int
 connection::rtmp_handler_onpublish(
     void* param, const char* app, const char* stream, const char* type, const char* tcurl) {
@@ -738,22 +773,31 @@ connection::rtmp_handler_onpublish(
     return conn->on_publish(app, stream, type, tcurl);
 }
 
+
+//调用this->on_pause
 int
 connection::rtmp_handler_onpause(void* param, int pause, uint32_t ms) {
     connection* conn = reinterpret_cast<connection*>(param);
     return conn->on_pause(pause, ms);
 }
 
+//调用this->on_seek
 int
 connection::rtmp_handler_onseek(void* param, uint32_t ms) {
     connection* conn = reinterpret_cast<connection*>(param);
     return conn->on_seek(ms);
 }
 
+//调用this->on_get_duration
 int
 connection::rtmp_handler_ongetduration(void* param, const char* app, const char* stream, double* duration) {
     connection* conn = reinterpret_cast<connection*>(param);
     return conn->on_get_duration(app, stream, duration);
+}
+
+server::server(const sstring& name) {
+    l.info("the rtmp server instance is running on shard: {}", this_shard_id());
+    
 }
 
 future<>
@@ -777,7 +821,7 @@ server::stop() {
     return tasks_done;
 }
 
-// FIXME: This could return void
+// 不断调用do_accept_one，直到gate关闭
 future<>
 server::do_accepts(int which) {
     (void)try_with_gate(_task_gate, [this, which] {
@@ -791,6 +835,7 @@ server::do_accepts(int which) {
     return make_ready_future<>();
 }
 
+//实际处理tcp连接并执行业务的函数
 future<>
 server::do_accept_one(int which) {
     return _listeners[which]
@@ -858,16 +903,19 @@ server::send_bytes() const {
     return _send_bytes;
 }
 
+//为所有核心创建server实例
 future<>
 server_control::start(const sstring& name) {
     return _server_dist->start(name);
 }
 
+//停止所有核心上的服务
 future<>
 server_control::stop() {
     return _server_dist->stop();
 }
 
+//为所有核心上的server实例调用fun设置路由
 future<>
 server_control::set_routes(std::function<void(routes& r)> fun) {
     return _server_dist->invoke_on_all([fun](auto& s) {
@@ -880,6 +928,7 @@ server_control::listen(socket_address addr) {
     return _server_dist->invoke_on_all<future<> (server::*)(socket_address)>(&server::listen, addr);
 }
 
+//为所有核心上的server实例调用listen
 future<>
 server_control::listen(socket_address addr, listen_options lo) {
     return _server_dist->invoke_on_all<future<> (server::*)(socket_address, listen_options)>(&server::listen, addr, lo);

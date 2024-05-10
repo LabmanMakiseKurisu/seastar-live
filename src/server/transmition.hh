@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 14:51:50
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 15:26:52
+ * @LastEditTime: 2024-05-10 15:47:22
  * @FilePath: /Amadeus/src/server/transmition.hh
  * @Description:
  */
@@ -28,6 +28,7 @@ using options_map = boost::program_options::variables_map;
 
 namespace session_ns = amadeus::session;
 
+// 管理多个session的类，session专用的容器
 template <typename T>
 class session_list {
  public:
@@ -121,6 +122,11 @@ class session_list {
 };
 
 class transmition : public session::lifecycle {
+ protected:
+    session_list<session::play_session> _players;
+    session_list<session::publish_session> _publishers;
+
+    mutable std::mutex _lock;
  public:
     static const sstring version;
 
@@ -129,15 +135,7 @@ class transmition : public session::lifecycle {
 
     void initialize(const global_settings &settings);
 
-    // settings_t settings_for(const sstring &app, const sstring &stream) const;
-
-    // future<settings_t> set_settings_for(const sstring &app, const sstring &stream, const settings_t &settings);
-
-    // future<> reset_settings_for(const sstring &app, const sstring &stream);
-
-    // const std::unordered_map<sstring, settings_t> &stream_settings() const;
-
-
+    //检查要创建的publisher session是否存在，不存在则创建
     future<publisher_ptr> make_valid_publisher(
         protocol_t prot,
         format_t fmt,
@@ -147,6 +145,7 @@ class transmition : public session::lifecycle {
         const arguments_t &args = {},
         const sstring &address = "");
 
+    // 检查其对应的publisher session是否存在，不存在则创建
     future<player_ptr> make_valid_player(
         protocol_t prot,
         format_t fmt,
@@ -157,7 +156,7 @@ class transmition : public session::lifecycle {
         const sstring &address = "",
         media_type_t media_type = media_type_t::all);
 
-    // publisher operator
+    // 查询_publishers数组的元素个数
     size_t get_publishers_size(
         const sstring &app,
         const sstring &stream,
@@ -168,6 +167,7 @@ class transmition : public session::lifecycle {
         return _publishers.size<session::publish_session>(app, stream, os, fmt, prot, std::move(condition));
     }
 
+    //找到特定的publisher
     publisher_ptr find_publisher(
         const sstring &app,
         const sstring &stream,
@@ -176,13 +176,14 @@ class transmition : public session::lifecycle {
         protocol_t prot = protocol_t::none,
         std::function<bool(publisher_ptr)> condition = nullptr) const;
 
+    //找到满足condition的所有publisher
     std::vector<publisher_ptr> find_publishers(
         ownership_t os = ownership_t::ignored,
         format_t fmt = format_t::ignored,
         protocol_t prot = protocol_t::none,
         std::function<bool(publisher_ptr)> condition = nullptr) const;
 
-    // player operator
+    // 查询_players数组的元素个数
     size_t get_players_size(
         const sstring &app,
         const sstring &stream,
@@ -193,6 +194,7 @@ class transmition : public session::lifecycle {
         return _players.size<session::play_session>(app, stream, os, fmt, prot, std::move(condition));
     }
 
+    //找到任意一个满足条件的player
     player_ptr find_any_player(
         const sstring &app,
         const sstring &stream,
@@ -201,6 +203,7 @@ class transmition : public session::lifecycle {
         protocol_t prot = protocol_t::none,
         std::function<bool(player_ptr)> condition = nullptr) const;
 
+    //找到所有满足条件的player
     std::vector<player_ptr> find_players(
         const sstring &app,
         const sstring &stream,
@@ -281,46 +284,6 @@ class transmition : public session::lifecycle {
         protocol_t prot = protocol_t::none,
         std::function<bool(rtmp_player_ptr)> condition = nullptr) const;
 
-    // schedule
-    publisher_ptr schedule_backsource(
-        protocol_t prot,
-        const sstring &app,
-        const sstring &stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "");
-    publisher_ptr schedule_backsource(
-        protocol_t prot,
-        const sstring &app,
-        const sstring &stream,
-        const sstring &remote_app,
-        const sstring &remote_stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "");
-    publisher_ptr schedule_backsource(const sstring &url_string);
-
-    future<publisher_ptr> schedule_backsource_for_any_url_async(const std::vector<sstring> &urls);
-
-    player_ptr schedule_forward(
-        publisher_ptr pub,
-        protocol_t prot,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        const media_type_t media_type = media_type_t::all);
-
-    player_ptr schedule_forward(
-        publisher_ptr pub,
-        protocol_t prot,
-        const sstring &remote_app,
-        const sstring &remote_stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        const media_type_t media_type = media_type_t::all);
-
-
  protected:
     future<> validate(
         type_t type,
@@ -332,43 +295,6 @@ class transmition : public session::lifecycle {
         const sstring &internal_url,
         const arguments_t &args,
         const sstring &address);
-
-    std::vector<publisher_ptr> make_backsources(const std::vector<sstring> &url_strings);
-
-    future<publisher_ptr> accept_any_backsource(std::vector<publisher_ptr> pubs);
-
-    future<session_ptr> accept_any_session(std::vector<session_ptr> sessions);
-
-    std::vector<future<session_ptr>> make_session_scheduling_futures(const std::vector<session_ptr> &sessions);
-
-    size_t get_forward_size(
-        const sstring &app, const sstring &stream, const sstring &address, format_t fmt, protocol_t prot) const;
-    size_t get_backsource_size(
-        const sstring &app, const sstring &stream, const sstring &address, format_t fmt, protocol_t prot) const;
-
-    publisher_ptr make_backsource(
-        protocol_t prot,
-        const sstring &app,
-        const sstring &stream,
-        const sstring &remote_app,
-        const sstring &remote_stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "");
-
-    publisher_ptr make_backsource(const sstring &url_string);
-
-    player_ptr make_forward(
-        publisher_ptr pub,
-        protocol_t prot,
-        const sstring &remote_app,
-        const sstring &remote_stream,
-        const sstring &internal_url = "",
-        const arguments_t &args = {},
-        const sstring &address = "",
-        const media_type_t media_type = media_type_t::all);
-    player_ptr
-    make_forward(publisher_ptr pub, const sstring &url_string, const media_type_t media_type = media_type_t::all);
 
     publisher_ptr make_publisher(
         protocol_t prot,
@@ -403,6 +329,7 @@ class transmition : public session::lifecycle {
     void
     for_each_session(const sstring &app, const sstring &stream, std::function<void(session_ptr session)> func) const;
 
+    //返回总的session数量
     size_t total_count() const;
 
     void on_add_publisher(publisher_ptr pub);
@@ -414,14 +341,6 @@ class transmition : public session::lifecycle {
     void stop_all_players_after_publisher_shutdown(publisher_ptr pub);
     void stop_publisher_after_player_shutdown(player_ptr plyr, const sstring &mode);
 
-    session_list<session::play_session> _players;
-    session_list<session::publish_session> _publishers;
-
-    mutable std::mutex _lock;
-    // mutable std::unordered_map<sstring, settings_t> _stream_settings;
-
-    // std::shared_ptr<host_server> _host_server;
-
  protected:
     /*** session lifecycle ***/
     virtual void on_fail(session_ptr s, status_t status, const sstring &message) override;
@@ -431,13 +350,6 @@ class transmition : public session::lifecycle {
     virtual void on_done(session_ptr s) override;
 
     void on_session_end(session_ptr s);
-
- private:
-    seastar::timer<> _timer;
-
-    mutable int64_t _last_total_recv_bytes;
-    mutable int64_t _last_total_send_bytes;
-    mutable std::chrono::system_clock::time_point _last_collect_timestamp = std::chrono::system_clock::now();
 };
 
 } // namespace server
