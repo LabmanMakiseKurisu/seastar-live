@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 14:00:04
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-10 11:41:19
+ * @LastEditTime: 2024-05-13 14:36:01
  * @FilePath: /Amadeus/src/session/rtmp/play_session.cc
  * @Description:
  */
@@ -176,7 +176,8 @@ play_session::on_terminate() {
 }
 
 shard_id
-play_session::cpu(rtmp_publisher_ptr pub) const {
+play_session::cpu(publisher_ptr pub) const {
+
     if (_rtmp_pub != pub) return false;
 
     return session_ns::session_impl::cpu();
@@ -185,7 +186,7 @@ play_session::cpu(rtmp_publisher_ptr pub) const {
 //对frames中的每个frame都调用on_frame(frame)
 //当frames全部处理结束后，调用_rtmp_queue.notify_not_empty()
 future<>
-play_session::on_frames(rtmp_publisher_ptr pub, std::vector<frame_ptr> &frames) {
+play_session::on_frames(publisher_ptr pub, std::vector<frame_ptr> &frames) {
     if (_rtmp_pub != pub || is_complete()) return make_ready_future();
 
     assert(_rtmp_pub && _rtmp_pub->format() == format_t::FLV);

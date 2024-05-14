@@ -277,7 +277,7 @@ session_impl::_set_status(status_t code) {
 }
 
 void
-session_impl::on_frame(flv_frame_ptr frame) {
+session_impl::on_frame(frame_ptr frame) {
     if (frame->is_metadata) {
         on_meta(frame->metadata);
     } else {

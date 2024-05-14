@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 13:40:07
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 15:30:54
+ * @LastEditTime: 2024-05-11 12:03:28
  * @FilePath: /Amadeus/src/app/global_setting.cc
  * @Description:
  */
@@ -64,6 +64,7 @@ global_settings::Register() {
     Register_element(&max_bytes_per_box);
     Register_element(&frame_trace_enabled);
     Register_element(&auto_stop_publish_mode);
+    Register_element(&http_listen_address);
 }
 
 void

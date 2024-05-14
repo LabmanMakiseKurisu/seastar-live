@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-22 18:15:16
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-10 12:01:53
+ * @LastEditTime: 2024-05-13 15:46:51
  * @FilePath: /Amadeus/src/session/publish_session.cc
  * @Description:
  */
@@ -142,13 +142,6 @@ publish_session::read_once(input_stream<char> &in) {
 
 bool
 publish_session::read_buffer(temporary_buffer<char> data) {
-    // if (!data.size()) return false;
-
-    // int ret = bmt_demuxer_write(_demuxer, (const uint8_t *)data.get(), data.size());
-    // bool success = ret == BMT_EAGAIN || ret == BMT_OK;
-    // if (!success) l.warn("{} demuxer read buffer failed {}", to_string(), ret);
-
-    // return success;
     return false;
 }
 
@@ -200,7 +193,7 @@ publish_session::on_settings_update() {
 }
 
 void
-publish_session::on_frame(flv_frame_ptr frame) {
+publish_session::on_frame(frame_ptr frame) {
     session_impl::on_frame(frame);
 
     if (frame->is_media) {
@@ -213,7 +206,7 @@ publish_session::on_frame(flv_frame_ptr frame) {
 }
 
 bool
-publish_session::add_frame(flv_frame_ptr frame) {
+publish_session::add_frame(frame_ptr frame) {
     bool added = _gops_cache.add_frame(frame);
     if (!added) return false;
 
@@ -240,7 +233,7 @@ publish_session::for_each_subscriber(std::function<void(std::shared_ptr<publish_
 }
 
 future<>
-publish_session::on_frame_for_each_subscriber(flv_frame_ptr frame) {
+publish_session::on_frame_for_each_subscriber(frame_ptr frame) {
     _sub_lock.lock();
     std::vector<std::shared_ptr<subscriber_item>> items(_subscribers.begin(), _subscribers.end());
     _sub_lock.unlock();
@@ -253,10 +246,10 @@ publish_session::on_frame_for_each_subscriber(flv_frame_ptr frame) {
 }
 
 future<>
-publish_session::on_frame(std::shared_ptr<subscriber_item> item, flv_frame_ptr frame) {
+publish_session::on_frame(std::shared_ptr<subscriber_item> item, frame_ptr frame) {
     auto self = dynamic_pointer_cast<publish_session>(shared_from_this());
 
-    std::vector<flv_frame_ptr> temp({frame});
+    std::vector<frame_ptr> temp({frame});
     if (!item->receiving) temp = _gops_cache.all_frames();
 
     return do_with(std::move(temp), [item, self](auto &frames) {
@@ -272,7 +265,7 @@ publish_session::on_frame(std::shared_ptr<subscriber_item> item, flv_frame_ptr f
 }
 
 future<>
-publish_session::publish_frame(flv_frame_ptr frame) {
+publish_session::publish_frame(frame_ptr frame) {
     if (is_complete()) return make_ready_future<>();
 
     // on_track_frame(frame);
@@ -298,7 +291,7 @@ publish_session::publish() {
 }
 
 void
-publish_session::add_temporary_frame(flv_frame_ptr frame) {
+publish_session::add_temporary_frame(frame_ptr frame) {
     _temporary_frames.push_back(frame);
 }
 

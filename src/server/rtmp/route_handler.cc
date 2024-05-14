@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 14:49:19
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 15:14:31
+ * @LastEditTime: 2024-05-11 15:29:22
  * @FilePath: /Amadeus/src/server/rtmp/route_handler.cc
  * @Description:
  */
@@ -24,7 +24,7 @@ namespace route {
 future<std::unique_ptr<reply>>
 finally(std::unique_ptr<request> &req, std::unique_ptr<reply> rep, reply::status_type status) {
     l.info(
-        "request end {}/{} {} {} {} {} {}",
+        "rtmp request end {}/{} {} {} {} {} {}",
         req->app_name,
         req->stream(),
         req->_remote_address,

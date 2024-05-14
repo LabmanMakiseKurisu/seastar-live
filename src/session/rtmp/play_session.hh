@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 14:00:11
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 14:14:00
+ * @LastEditTime: 2024-05-13 14:34:16
  * @FilePath: /Amadeus/src/session/rtmp/play_session.hh
  * @Description:
  */
@@ -14,7 +14,9 @@
 #include "flv/flv.hh"
 #include "rtmp/stream.hh"
 #include "session/play_session.hh"
-#include "session/rtmp/subscriber.hh"
+#include "session/subscriber.hh"
+#include "session/rtmp/publish_session.hh"
+
 
 namespace amadeus {
 namespace rtmp {
@@ -26,8 +28,13 @@ using namespace seastar;
 using media_ptr = std::shared_ptr<flv::media_t>;
 using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
-class play_session : public session_ns::play_session,
-                     public subscriber {
+using frame_ptr = std::shared_ptr<flv::frame_t>;
+using rtmp_publisher_ptr = std::shared_ptr<rtmp::session::publish_session>;
+
+
+using subscriber_ptr = std::shared_ptr<session_ns::subscriber>;
+
+class play_session : public session_ns::play_session {
  public:
     play_session(
         publisher_ptr pub,
@@ -84,8 +91,8 @@ class play_session : public session_ns::play_session,
     virtual void on_terminate() override;
 
 
-    virtual shard_id cpu(rtmp_publisher_ptr pub) const override;
-    virtual future<> on_frames(rtmp_publisher_ptr pub, std::vector<frame_ptr> &frames) override;
+    virtual shard_id cpu(publisher_ptr pub) const override;
+    virtual future<> on_frames(publisher_ptr pub, std::vector<frame_ptr> &frames) override;
 
     struct pipe_state {
         metadata_ptr metadata = nullptr;
@@ -109,7 +116,7 @@ class play_session : public session_ns::play_session,
     metadata_ptr latest_metadata() const;
 
     async_frame_queue_t<frame_ptr> _rtmp_queue;
-    std::shared_ptr<publish_session> _rtmp_pub = nullptr;
+    rtmp_publisher_ptr _rtmp_pub = nullptr;
 };
 
 namespace svr {

@@ -17,8 +17,8 @@ using media_ptr = std::shared_ptr<flv::media_t>;
 using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
 
-using flv_frame_ptr = std::shared_ptr<flv::frame_t>;
-using flv_frame_gop_queue_t = gop_queue_t<flv_frame_ptr>;
+using frame_ptr = std::shared_ptr<flv::frame_t>;
+using flv_frame_gop_queue_t = gop_queue_t<frame_ptr>;
 
 class play_session : public session_impl,
                      public subscriber {
@@ -74,16 +74,17 @@ class play_session : public session_impl,
 
  protected:
     virtual shard_id cpu(publisher_ptr pub) const override;
-    virtual future<> on_frames(publisher_ptr pub, std::vector<flv_frame_ptr> &frames) override;
+    virtual future<> on_frames(publisher_ptr pub, std::vector<frame_ptr> &frames) override;
     virtual void on_done(publisher_ptr pub) override;
     virtual void on_cancel(publisher_ptr pub) override;
     virtual void on_fail(publisher_ptr pub, status st) override;
 
  protected:
     struct pipe_state {
-        bool bhin_sent = false;
-        bool ftyp_sent = false;
+        bool flv_header_sent = false;
+        metadata_ptr meta = nullptr;
     };
+
     virtual void on_done() override;
     virtual void on_fail() override;
     virtual void on_cancel() override;
@@ -93,14 +94,14 @@ class play_session : public session_impl,
     virtual void on_end() override;
     virtual void on_terminate() override;
 
-    virtual void on_frame(flv_frame_ptr frame) override;
+    virtual void on_frame(frame_ptr frame) override;
     virtual void on_settings_update() override;
 
     virtual bool allow_media_type(media_type_t type) const;
 
     future<> write_once(pipe_state &st, output_stream<char> &out);
 
-    virtual future<> write_frame(pipe_state &st, output_stream<char> &out, flv_frame_ptr frame);
+    virtual future<> write_frame(pipe_state &st, output_stream<char> &out, frame_ptr frame);
     virtual future<> write_meta(pipe_state &st, output_stream<char> &out, metadata_ptr moov);
     virtual future<> write_media(pipe_state &st, output_stream<char> &out, media_ptr media);
 
@@ -133,7 +134,7 @@ class play_session : public session_impl,
 
     publisher_ptr _pub = nullptr;
 
-    async_frame_queue_t<flv_frame_ptr> _flv_queue;
+    async_frame_queue_t<frame_ptr> _flv_queue;
 };
 
 namespace svr {

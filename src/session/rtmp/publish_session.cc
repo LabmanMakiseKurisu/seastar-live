@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 13:29:35
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-09 18:02:36
+ * @LastEditTime: 2024-05-13 15:47:35
  * @FilePath: /Amadeus/src/session/rtmp/publish_session.cc
  * @Description:
  */
@@ -373,7 +373,6 @@ future<>
 publish_session::publish(pipe_state &st, frame_ptr frame) {
     if (validate_cache<rtmp_frame_gop_queue_t>(_rtmp_cache)) {
         return on_frame_for_each_subscriber(frame).then([&st, frame, this] {
-            // return publish_bmt_frame(st, frame);
             return make_ready_future<>();
         });
     } else {

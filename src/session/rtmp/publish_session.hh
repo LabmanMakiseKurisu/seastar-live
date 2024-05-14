@@ -3,7 +3,7 @@
 #include "rtmp/packet.hh"
 #include "rtmp/stream.hh"
 #include "session/publish_session.hh"
-#include "session/rtmp/subscriber.hh"
+#include "session/subscriber.hh"
 
 namespace amadeus {
 namespace rtmp {
@@ -17,6 +17,8 @@ using script_ptr = std::shared_ptr<flv::script_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
 using frame_ptr = std::shared_ptr<flv::frame_t>;
 using rtmp_frame_gop_queue_t = gop_queue_t<frame_ptr>;
+
+using subscriber_ptr = std::shared_ptr<session_ns::subscriber>;
 
 class publish_session : public session_ns::publish_session {
  public:
@@ -74,7 +76,7 @@ class publish_session : public session_ns::publish_session {
 
     void remove_all_rtmp_subscribers();
     future<> on_frame_for_each_subscriber(frame_ptr frame);
-    future<> on_frame(std::shared_ptr<subscriber_item> item, frame_ptr frame);
+    future<> on_frame(std::shared_ptr<session_ns::subscriber_item> item, frame_ptr frame);
 
     future<> publish(pipe_state &st, frame_ptr frame);
 
@@ -91,7 +93,7 @@ class publish_session : public session_ns::publish_session {
 
     rtmp_frame_gop_queue_t _rtmp_cache; 
 
-    std::vector<std::shared_ptr<subscriber_item>> _subscribers; //带receiveing状态的subscriber数组
+    std::vector<std::shared_ptr<session_ns::subscriber_item>> _subscribers; //带receiveing状态的subscriber数组
 };
 
 namespace svr {

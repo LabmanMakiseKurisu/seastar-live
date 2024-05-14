@@ -6,12 +6,11 @@
 
 namespace amadeus {
 
-
 #define HEADER_ID_NULL LONG_MIN
 
 using namespace seastar;
 
-//媒体类型
+// 媒体类型
 enum class media_type_t : unsigned int {
     none = 0,
     video = 1 << 0,
@@ -20,7 +19,7 @@ enum class media_type_t : unsigned int {
     all = video | audio
 };
 
-//服务类型
+// 服务类型
 enum class type_t : unsigned int {
     none = 0,
 
@@ -30,7 +29,7 @@ enum class type_t : unsigned int {
     all = play | publish,
 };
 
-//封装类型
+// 封装类型
 enum class format_t : unsigned int {
     UNKNOWN = 0,
     BMT,
@@ -41,7 +40,7 @@ enum class format_t : unsigned int {
     ignored
 };
 
-//协议类型
+// 协议类型
 enum class protocol_t : unsigned int {
     none = 0,
 
@@ -57,7 +56,7 @@ enum class protocol_t : unsigned int {
     HTTP = HTTP1 | HTTP2 | HTTP3,
 };
 
-//所有权
+// 所有权
 enum class ownership_t : unsigned int {
     ignored = 0,
     internal = 1,
@@ -93,6 +92,21 @@ convert_to_media_type(const T &_v) {
         case T::video: return media_type_t::video;
         case T::all: return media_type_t::all;
         default: return media_type_t::none;
+    }
+}
+
+static inline media_type_t
+str2media(const sstring &str) {
+    static const sstring arr[] = {"audio", "video", "all"};
+    int i;
+    for (i = 0; i < 3; i++) {
+        if (arr[i] == str) { break; }
+    }
+    switch (i) {
+        case 0: return media_type_t::audio; break;
+        case 1: return media_type_t::video; break;
+        case 2: return media_type_t::all; break;
+        default: return media_type_t::none; break;
     }
 }
 
@@ -135,7 +149,7 @@ static inline format_t
 protocol_to_default_format(protocol_t prot) {
     switch (prot) {
         case protocol_t::TCP: return format_t::BMT;
-        case protocol_t::HTTP1: return format_t::BMT;
+        case protocol_t::HTTP1: return format_t::FLV;
         case protocol_t::HTTP2: return format_t::BMT;
         case protocol_t::HTTP3: return format_t::BMT;
         case protocol_t::RTMP: return format_t::FLV;
@@ -196,20 +210,28 @@ schema_to_protocol(const sstring &schema) {
     return protocol_t::none;
 }
 
-template <class T>
 static inline protocol_t
-convert_to_protocol(const T &_v) {
+convert_to_protocol(const int &_v) {
     switch (_v) {
-        case T::TCP: return protocol_t::TCP;
-        case T::HTTP1: return protocol_t::HTTP1;
-        case T::HTTP2: return protocol_t::HTTP2;
-        case T::HTTP3: return protocol_t::HTTP3;
-        case T::RTMP: return protocol_t::RTMP;
-        case T::SRT: return protocol_t::SRT;
-        case T::FILE: return protocol_t::FILE;
-        case T::ignored: return protocol_t::none;
+        case 0: return protocol_t::TCP;
+        case 1: return protocol_t::HTTP1;
+        case 2: return protocol_t::HTTP2;
+        case 3: return protocol_t::HTTP3;
+        case 4: return protocol_t::RTMP;
+        case 5: return protocol_t::SRT;
+        case 6: return protocol_t::FILE;
         default: return protocol_t::none;
     }
+}
+
+static inline protocol_t
+str2protocol(const sstring &str) {
+    static const sstring arr[] = {"TCP", "HTTP1", "HTTP2", "HTTP3", "RTMP", "SRT", "FILE"};
+    int i;
+    for (i = 0; i < 7; i++) {
+        if (arr[i] == str) { return convert_to_protocol(i); }
+    }
+    return convert_to_protocol(i);
 }
 
 template <class T>
@@ -271,6 +293,21 @@ convert_to_format(const T &_v) {
         case T::FLV: return format_t::FLV;
         case T::HLS: return format_t::HLS;
         default: return format_t::BMT;
+    }
+}
+
+static inline format_t
+str2format(const sstring &str) {
+    static const sstring arr[] = {"bmt", "flv", "hls", "ignored"};
+    int i;
+    for (i = 0; i < 4; i++) {
+        if (arr[i] == str) { break; }
+    }
+    switch (i) {
+        case 0: return format_t::BMT;
+        case 1: return format_t::FLV;
+        case 2: return format_t::HLS;
+        default: return format_t::UNKNOWN;
     }
 }
 
@@ -423,5 +460,4 @@ std::ostream &operator<<(std::ostream &os, const protocol_t v);
 std::ostream &operator<<(std::ostream &os, const ownership_t v);
 std::ostream &operator<<(std::ostream &os, const media_type_t v);
 
-} // namespace bilibili
-
+} // namespace amadeus

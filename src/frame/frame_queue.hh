@@ -11,8 +11,8 @@ using namespace seastar;
  * Frame_ptr 派生自frame_base实现的某个具体帧的智能指针
  * @example using media_ptr = std::shared_ptr<flv::media_t>;
             using metadata_ptr = std::shared_ptr<flv::metadata_t>;
-            using flv_frame_ptr = frame_base<media_ptr, metadata_ptr>;
-            using flv_frame_queue = frame_queue_t<flv_frame_ptr>
+            using frame_ptr = frame_base<media_ptr, metadata_ptr>;
+            using flv_frame_queue = frame_queue_t<frame_ptr>
  */
 template <typename Frame_ptr>
 class frame_queue_t {

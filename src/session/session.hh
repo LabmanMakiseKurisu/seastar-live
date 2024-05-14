@@ -26,13 +26,13 @@ namespace session {
 using namespace seastar;
 using media_ptr = std::shared_ptr<flv::media_t>;
 using metadata_ptr = std::shared_ptr<flv::metadata_t>;
-using flv_frame_ptr = std::shared_ptr<flv::frame_t>;
+using frame_ptr = std::shared_ptr<flv::frame_t>;
 
 class pipe {
  public:
     virtual ~pipe() = default;
 
-    virtual void on_frame(flv_frame_ptr frame) = 0;
+    virtual void on_frame(frame_ptr frame) = 0;
 
     virtual bool is_complete() const = 0;
 
@@ -212,7 +212,7 @@ class session_impl : public pipe,
     virtual void on_launch();
     virtual void on_terminate();
 
-    virtual void on_frame(flv_frame_ptr frame) override;
+    virtual void on_frame(frame_ptr frame) override;
     void on_media(media_ptr frame);
     void on_meta(metadata_ptr frame);
 

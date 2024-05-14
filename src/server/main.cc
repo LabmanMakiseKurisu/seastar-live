@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-17 15:59:26
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-23 15:55:31
+ * @LastEditTime: 2024-05-11 15:07:08
  * @FilePath: /Amadeus/src/server/main.cc
  * @Description:
  */
@@ -13,16 +13,19 @@
 #include <seastar/core/seastar.hh>
 #include <seastar/core/sharded.hh>
 #include <seastar/core/thread.hh>
-#include <seastar/http/api_docs.hh>
 #include <seastar/net/inet_address.hh>
+#include <seastar/http/httpd.hh>
 
 #include <fstream>
 #include <iostream>
 
 #include "app/global_setting.hh"
 #include "server/log.hh"
+#include "http1/http.hh"
 #include "rtmp/rtmp.hh"
 #include "server/rtmp/route_handler.hh"
+#include "server/http1/route_handler.hh"
+#include "server/http1/path.hh"
 #include "util/stop_signal.hh"
 
 
@@ -31,6 +34,12 @@ using namespace amadeus;
 using namespace amadeus::server;
 namespace bpo = boost::program_options;
 
+
+void
+set_routes(httpd::routes &r, std::shared_ptr<server::transmition> trans) {
+    http1::path::play_stream_by_get.set(r, new http1::route::play_stream_route_handler(trans));
+}
+
 void
 set_routes(rtmp::routes &r, std::shared_ptr<server::transmition> trans) {
     r.set(rtmp::request::mode::play, new rtmp::route::play_stream_route_handler(trans));
@@ -38,11 +47,45 @@ set_routes(rtmp::routes &r, std::shared_ptr<server::transmition> trans) {
 }
 
 void
+start_http1_server(
+    http1::server_control &server, const sstring &listen_address, std::function<void(httpd::routes &r)> func) {
+    auto addr = socket_address(ipv4_addr(listen_address));
+
+    l.info("starting HTTP/1 server");
+    server.start().get();
+
+    engine().at_exit([&] {
+        l.info("stoppping HTTP/1 server");
+        return server.stop();
+    });
+
+    server.server().invoke_on_all(&httpd::http_server::set_content_streaming, true).get();
+
+    l.info("set HTTP/1 route");
+    server.set_routes(func).get();
+
+    listen_options opts;
+    opts.reuse_address = true;
+    opts.lba = server_socket::load_balancing_algorithm::connection_distribution;
+
+    l.info("HTTP/1 server listening on {}", addr);
+    server.listen(addr, opts).get();
+}
+
+void
 start_rtmp_server(rtmp::server_control &server, std::function<void(rtmp::routes &r)> set_routes) {
     auto listen_address = global_settings::global.rtmp_listen_address();
     auto addr = socket_address(ipv4_addr(listen_address));
 
+    l.info("starting RTMP server");
     server.start().get();
+
+    engine().at_exit([&] {
+        l.info("stoppping RTMP server");
+        return server.stop();
+    });
+
+    l.info("set RTMP route");
     server.set_routes(std::move(set_routes)).get();
 
     listen_options opts;
@@ -66,6 +109,7 @@ main(int ac, char **av) {
     // 将global_settings类中默认的配置项添加到app中
     global_settings::setup_app_options(app);
 
+    http1::server_control http_server;
     rtmp::server_control rtmp_server;
 
     std::shared_ptr<transmition> trans = std::make_shared<transmition>();
@@ -104,11 +148,11 @@ main(int ac, char **av) {
             start_rtmp_server(rtmp_server, [trans](rtmp::routes &r) {
                 set_routes(r, trans);
             });
-            engine().at_exit([&] {
-                l.info("Stoppping RTMP server");
-                return rtmp_server.stop();
-            });
-            //server::l.info("ready to exit");
+            start_http1_server(
+                    http_server, global_settings::global.http_listen_address(), [trans](httpd::routes &r) {
+                        set_routes(r, trans);
+                    });
+
             stop_signal.wait().get();
         });
     });

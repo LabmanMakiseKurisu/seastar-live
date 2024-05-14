@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 14:51:50
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-10 15:47:22
+ * @LastEditTime: 2024-05-10 18:21:30
  * @FilePath: /Amadeus/src/server/transmition.hh
  * @Description:
  */
@@ -20,6 +20,7 @@
 #include "session/publish_session.hh"
 #include "session/rtmp/play_session.hh"
 #include "session/rtmp/publish_session.hh"
+#include "session/http1/play_session.hh"
 
 namespace amadeus {
 namespace server {

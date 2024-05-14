@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 11:43:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-19 17:12:17
+ * @LastEditTime: 2024-05-14 14:16:41
  * @FilePath: /Amadeus/README.md
  * @Description: 
 -->
@@ -11,21 +11,21 @@
 
 # 待开发的功能
 - 推流协议支持
-    - RTMP-flv推流
-    - RTSP-mp4推流
-    - HLSv3(.ts)/v7(.fmp4)推流（后期需求）
+    - RTMP-flv推流(done)
+    - WebRTC推流（后期需求）
+    - RTSP推流（后期需求）
 - 拉流协议支持
-    - RTMP-flv拉流
-    - RTSP-mp4拉流
-    - HTTP-flv拉流（后期需求）
-    - HLSv3(.ts)/v7(.fmp4)拉流（后期需求）
+    - RTMP-flv拉流(done)
+    - HTTP-flv拉流(done)
+    - HLSv3(.ts)/v7(.fmp4)拉流（TODO）
+    - WebRTC拉流(done)（后期需求）
+    - RTSP-mp4拉流（后期需求）
 - 格式互转
-    - flv转mp4
-    - mp4转flv
-    - 切片生产HLSv3(.ts)/v7(.fmp4)（后期需求）
-- 编码互转
-    - 视频：H264、HEVCs、AV1互转（后期考虑AV1）
-    - 音频：AAC LC、Opus、MP3互转（后期考虑MP3）
+    - 切片生产HLSv3(.ts)/v7(.fmp4)（TODO）
+- Swagger API
+    - 查询信息
+    - 转发：本服务作为客户端向其他服务器推流
+    - 回源：本服务作为客户端向其他服务器拉流
 
 # 环境需求
 - Ubuntu 22.04 LTS (necessary)
@@ -63,3 +63,6 @@ mkdir -p build && cd build
 cmake -DCMAKE_BUILD_TYPE=Debug -G Ninja ..
 ninja -j4
 ```
+
+# 文档
+https://www.yuque.com/amadeus-kepdi/ceguvv/ylgs07ida3gpknva

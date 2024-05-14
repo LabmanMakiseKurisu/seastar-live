@@ -14,8 +14,8 @@ using namespace seastar;
  * Metadata 具体封装格式元数据帧帧的智能指针
  * @example using media_ptr = std::shared_ptr<flv::media_t>;
             using metadata_ptr = std::shared_ptr<flv::metadata_t>;
-            using flv_frame_ptr = frame_base<media_ptr, metadata_ptr>;
-            using flv_gops = gop_queue_t<flv_frame_ptr>
+            using frame_ptr = frame_base<media_ptr, metadata_ptr>;
+            using flv_gops = gop_queue_t<frame_ptr>
  */
 template <typename Frame_ptr>
 class gop_queue_t {
@@ -146,7 +146,7 @@ class gop_queue_t {
 
         return true;
     }
-    //取出所有帧
+    //以拷贝的形式取出_gops中所有帧
     std::vector<Frame_ptr> all_frames() const {
         std::lock_guard<std::mutex> g(_lock);
 

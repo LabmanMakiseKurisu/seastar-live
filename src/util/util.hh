@@ -23,6 +23,8 @@
 
 #include <boost/algorithm/string.hpp>
 #include <seastar/core/circular_buffer.hh>
+#include <seastar/core/file.hh>
+#include <seastar/core/fstream.hh>
 #include <seastar/core/sstring.hh>
 #include <seastar/core/temporary_buffer.hh>
 #include <seastar/net/inet_address.hh>
@@ -79,8 +81,112 @@ bool parse_stream_url(
 bool is_true(const sstring &value);
 bool is_false(const sstring &value);
 
-
 } // namespace util
+
+namespace fs = std::filesystem;
+
+template <typename Action>
+future<>
+with_file_output_stream(fs::path filepath, open_flags flags, Action action) {
+    auto tmp_file = filepath.string() + ".tmp";
+
+    return open_file_dma(tmp_file, flags | open_flags::truncate)
+        .then([action = std::move(action)](seastar::file f) {
+            return make_file_output_stream(f).then([action = std::move(action)](output_stream<char> &&out) {
+                return do_with(std::move(out), [action = std::move(action)](output_stream<char> &out) {
+                    return futurize_invoke(std::move(action), out)
+                        .then([&out] {
+                            return out.flush();
+                        })
+                        .finally([&out] {
+                            return out.close();
+                        });
+                });
+            });
+        })
+        .then([filepath, tmp_file] {
+            return rename_file(tmp_file, filepath.native());
+        });
+}
+
+template <typename Action>
+future<>
+with_truncate_file_output_stream(fs::path filepath, size_t size, open_flags flags, Action action) {
+    using namespace std::chrono;
+    auto ts = duration_cast<nanoseconds>(system_clock::now().time_since_epoch()).count();
+
+    auto tmp_file = filepath.string() + "." + std::to_string(ts) + ".bak";
+
+    return open_file_dma(tmp_file, flags | open_flags::truncate)
+        .then([size, action = std::move(action)](seastar::file f) {
+            return f.truncate(size).then([f, action = std::move(action)] {
+                return make_file_output_stream(f).then([action = std::move(action)](output_stream<char> &&out) {
+                    return do_with(std::move(out), [action = std::move(action)](output_stream<char> &out) {
+                        return futurize_invoke(std::move(action), out)
+                            .then([&out] {
+                                return out.flush();
+                            })
+                            .finally([&out] {
+                                return out.close();
+                            });
+                    });
+                });
+            });
+        })
+        .then([filepath, tmp_file] {
+            return file_exists(filepath.native()).then([filepath] (auto exists) {
+                if (exists) {
+                    return remove_file(filepath.native());
+                } else {
+                    return make_ready_future<>();
+                }
+            }).then([tmp_file, filepath] {
+                return rename_file(tmp_file, filepath.native());
+            });
+        });
+}
+
+template <typename Action>
+future<>
+with_file_input_stream(
+    fs::path filepath,
+    open_flags flags,
+    uint64_t offset,
+    uint64_t len,
+    file_input_stream_options options,
+    Action action) {
+    return open_file_dma(filepath.native(), flags)
+        .then([offset, len, options, action = std::move(action)](seastar::file f) {
+            auto in = make_file_input_stream(std::move(f), offset, len, options);
+            return do_with(std::move(in), [action = std::move(action)](input_stream<char> &in) {
+                return futurize_invoke(std::move(action), in).finally([&in] {
+                    return in.close();
+                });
+            });
+        });
+}
+
+template <typename Action>
+future<>
+with_file_input_stream(
+    fs::path filepath, open_flags flags, uint64_t offset, file_input_stream_options options, Action action) {
+    return with_file_input_stream(
+        filepath, flags, offset, std::numeric_limits<uint64_t>::max(), options, std::move(action));
+}
+
+template <typename Action>
+future<>
+with_file_input_stream(fs::path filepath, open_flags flags, file_input_stream_options options, Action action) {
+    return with_file_input_stream(filepath, flags, 0, options, std::move(action));
+}
+
+template <typename Action>
+future<>
+with_file_input_stream(fs::path filepath, open_flags flags, Action action) {
+    return with_file_input_stream(filepath, flags, 0, file_input_stream_options{}, std::move(action));
+}
+
+
 } // namespace amadeus
 
 static inline std::ostream &

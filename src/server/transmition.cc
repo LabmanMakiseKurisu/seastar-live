@@ -326,22 +326,8 @@ transmition::make_valid_player(
                                 make_player(pub, prot, fmt, id, app, stream, internal_url, args, address, media_type);
                             return make_ready_future<player_ptr>(plyr);
                         } else {
-                            // auto urls = http1::get_localtion_urls(e.headers);
-                            // if (urls.empty()) {
-                            l.warn("no backsource locations is provided");
+                            l.warn("no valid pub is provided");
                             return make_ready_future<player_ptr>(nullptr);
-                            // }
-                            // return schedule_backsource_for_any_url_async(urls)
-                            //     .then([prot, fmt, id, app, stream, internal_url, args, address, media_type, this](
-                            //               auto pub) {
-                            //         auto plyr = make_player(
-                            //             pub, prot, fmt, id, app, stream, internal_url, args, address, media_type);
-                            //         return make_ready_future<player_ptr>(plyr);
-                            //     })
-                            //     .handle_exception([](auto e) {
-                            //         l.warn("failed to play: {}", e);
-                            //         return make_exception_future<player_ptr>(std::move(e));
-                            //     });
                         }
                     } else {
                         l.warn("failed to play: {}", e.what());
@@ -784,10 +770,10 @@ transmition::make_player(
         //     plyr = std::make_shared<tcp::session::svr::play_session>(
         //         pub, id, app, stream, internal_url, args, address, ownership_t::user, fmt, media_type);
         //     break;
-        // case protocol_t::HTTP1:
-        //     plyr = std::make_shared<http1::session::svr::play_session>(
-        //         pub, id, app, stream, internal_url, args, address, ownership_t::user, fmt, media_type);
-        //     break;
+        case protocol_t::HTTP1:
+            plyr = std::make_shared<http1::session::svr::play_session>(
+                pub, id, app, stream, internal_url, args, address, ownership_t::user, fmt, media_type);
+            break;
         // case protocol_t::HTTP2:
         // case protocol_t::HTTP3:
         //     plyr = std::make_shared<http1::session::svr::play_session>(

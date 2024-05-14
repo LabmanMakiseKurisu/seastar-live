@@ -2,9 +2,9 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 11:43:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-24 13:20:24
+ * @LastEditTime: 2024-05-11 12:03:00
  * @FilePath: /Amadeus/src/app/global_setting.hh
- * @Description: 
+ * @Description:
  */
 #pragma once
 #include <seastar/core/app-template.hh>
@@ -42,6 +42,9 @@ class global_settings {
         "auto-stop-publish-mode",
         "internal",
         "Mode(user, internal, all, none) to stop publish sessions after all play(user-mode) session stopped");
+    element<sstring> http_listen_address =
+        element<sstring>("http-listen", "0.0.0.0:10002", "HTTP RESTFul API Server listen address");
+
  public:
     static global_settings global;
     static void setup_app_options(app_template &app);

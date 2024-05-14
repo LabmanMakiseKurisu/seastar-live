@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-22 19:09:03
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-10 12:01:28
+ * @LastEditTime: 2024-05-13 14:42:33
  * @FilePath: /Amadeus/src/session/play_session.cc
  * @Description:
  *
@@ -143,7 +143,7 @@ play_session::cpu(publisher_ptr pub) const {
 }
 
 future<>
-play_session::on_frames(publisher_ptr pub, std::vector<flv_frame_ptr> &frames) {
+play_session::on_frames(publisher_ptr pub, std::vector<frame_ptr> &frames) {
     if (_pub != pub) return make_ready_future<>();
 
     return do_for_each(
@@ -235,13 +235,13 @@ play_session::on_terminate() {
 }
 
 void
-play_session::on_frame(flv_frame_ptr frame) {
+play_session::on_frame(frame_ptr frame) {
     if (!_pub || is_complete()) return;
     if (frame->is_media && !allow_media_type(frame->media->media_type())) return;
 
     _flv_queue.push_back(frame);
 
-    if (!validate_cache<frame_queue_t<flv_frame_ptr>>(_flv_queue)) {
+    if (!validate_cache<frame_queue_t<frame_ptr>>(_flv_queue)) {
         l.warn("{} too many cached frames", to_string());
         _cancel();
     }
@@ -264,8 +264,7 @@ play_session::write_once(pipe_state &st, output_stream<char> &out) {
     auto f = make_ready_future<>();
 
     return f.then([&st, &out, this] {
-        return with_frames<flv_frame_ptr>(_flv_queue, [&st, &out, this](auto frames) {
-            assert(frames.front()->is_metadata);
+        return with_frames<frame_ptr>(_flv_queue, [&st, &out, this](auto frames) {
             return do_with(std::move(frames), [&st, &out, this](auto &frames) {
                 return do_for_each(frames, [&st, &out, this](auto frame) {
                     return write_frame(st, out, frame);
@@ -276,8 +275,9 @@ play_session::write_once(pipe_state &st, output_stream<char> &out) {
 }
 
 future<>
-play_session::write_frame(pipe_state &st, output_stream<char> &out, flv_frame_ptr frame) {
+play_session::write_frame(pipe_state &st, output_stream<char> &out, frame_ptr frame) {
     if (frame->is_metadata) {
+        st.meta = frame->metadata;
         return write_meta(st, out, frame->metadata);
     } else {
         return write_media(st, out, frame->media);
@@ -285,13 +285,51 @@ play_session::write_frame(pipe_state &st, output_stream<char> &out, flv_frame_pt
 }
 
 future<>
-play_session::write_meta(pipe_state &st, output_stream<char> &out, metadata_ptr moov) {
-    return make_ready_future<>();
+play_session::write_meta(pipe_state &st, output_stream<char> &out, metadata_ptr _metadata) {
+    circular_buffer<temporary_buffer<uint8_t>> buffers;
+
+    if (!st.flv_header_sent) {
+        // flv header
+        auto header = flv::tag::header_data(_metadata->audio.is_enabled(), _metadata->video.is_enabled());
+        buffers.push_back(std::move(header));
+
+        st.flv_header_sent = true;
+    }
+    // script tag
+    auto script_body = _metadata->to_tag_data();
+    auto script_tag = flv::tag::make_tag_data(flv::type_t::script, std::move(script_body));
+    buffers.push_back(std::move(script_tag));
+
+    if (_metadata->audio.is_enabled()) {
+        // audio tag
+        auto audio_header = _metadata->audio.to_tag_data();
+        auto audio_tag = flv::tag::make_tag_data(flv::type_t::audio, std::move(audio_header));
+        buffers.push_back(std::move(audio_tag));
+    }
+
+    if (_metadata->video.is_enabled()) {
+        // video tag
+        auto video_header = _metadata->video.to_tag_data();
+        auto video_tag = flv::tag::make_tag_data(flv::type_t::video, std::move(video_header));
+        buffers.push_back(std::move(video_tag));
+    }
+
+    return write_buffer(out, std::move(buffers));
 }
 
 future<>
 play_session::write_media(pipe_state &st, output_stream<char> &out, media_ptr media) {
-    return make_ready_future<>();
+    assert(st.meta);
+    if (!st.meta) return make_ready_future();
+
+    auto tag_body = media->to_tag_data(st.meta.get());
+ 
+    auto data = flv::tag::make_tag_data(media->type(), std::move(tag_body), media->dts());
+
+    circular_buffer<temporary_buffer<uint8_t>> buffers;
+    buffers.push_back(std::move(data));
+
+    return write_buffer(out, std::move(buffers));
 }
 
 future<>
