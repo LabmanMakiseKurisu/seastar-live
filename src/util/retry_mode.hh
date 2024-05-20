@@ -54,14 +54,14 @@ class retry_mode {
     virtual future<bool> _validate();
     virtual future<> _do_try();
 
-    bool _excuting = false;
-    int _try_times = 0;
-    int _total_try_times = 0;
-    int _max_try_times = 1;
+    bool _excuting = false; //是否正在执行
+    int _try_times = 0; //尝试的次数
+    int _total_try_times = 0; //预计尝试的次数
+    int _max_try_times = 1; //最大尝试次数
 
-    std::function<future<>(int, int)> _func;
+    std::function<future<>(int, int)> _func; //执行函数
 
-    std::chrono::system_clock::time_point _timestamp;
+    std::chrono::system_clock::time_point _timestamp; 
     std::chrono::system_clock::time_point _last_timestamp;
     std::chrono::system_clock::time_point _first_timestamp;
 };

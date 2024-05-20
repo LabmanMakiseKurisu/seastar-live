@@ -25,7 +25,7 @@ else()
   add_subdirectory(${CMAKE_SOURCE_DIR}/3rd/nlohmann_json)
 endif()
 
-
+# import fmp4
 add_subdirectory (libfmp4)
 set(LIBFMP4_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/libfmp4)
 set(LIBFMP4_SOURCE_DIR ${LIBFMP4_ROOT}/source)
@@ -61,6 +61,64 @@ target_include_directories(flv
     ${LIBFLV_INCLUDE_DIR}
     $<BUILD_INTERFACE:${LIBFLV_INCLUDE_DIR}>
     $<INSTALL_INTERFACE:${INSTALL_HEADER_INCLUDE_DIR}/flv>
+)
+
+# import mov
+set(LIBMOV_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/libmov)
+set(LIBMOV_SOURCE_DIR ${LIBMOV_ROOT}/source)
+set(LIBMOV_INCLUDE_DIR ${LIBMOV_ROOT}/include)
+
+file(GLOB LIBMOV_SRCS
+  "${LIBMOV_INCLUDE_DIR}/*.h"
+  "${LIBMOV_SOURCE_DIR}/*.c"
+)
+file(GLOB LIBMOV_HDRS
+  "${LIBMOV_INCLUDE_DIR}/*.h"
+)
+
+add_library(mov SHARED ${LIBMOV_SRCS})
+# set_target_properties(mov 
+#   PROPERTIES
+#    LINKER_LANGUAGE C
+#    INTERFACE_INCLUDE_DIRECTORIES ${LIBMOV_INCLUDE_DIR}
+# )
+set_target_properties(mov 
+  PROPERTIES 
+    PUBLIC_HEADER "${LIBMOV_HDRS}"
+)
+
+target_include_directories(mov 
+  PUBLIC 
+    ${LIBMOV_INCLUDE_DIR}
+    $<BUILD_INTERFACE:${LIBMOV_INCLUDE_DIR}>
+    $<INSTALL_INTERFACE:${INSTALL_HEADER_INCLUDE_DIR}/mov>
+)
+
+# import mpegts
+set(LIBMPEGTS_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/libmpeg)
+set(LIBMPEGTS_SOURCE_DIR ${LIBMPEGTS_ROOT}/source)
+set(LIBMPEGTS_INCLUDE_DIR ${LIBMPEGTS_ROOT}/include)
+
+file(GLOB LIBMPEGTS_SRCS
+  "${LIBMPEGTS_INCLUDE_DIR}/*.h"
+  "${LIBMPEGTS_SOURCE_DIR}/*.c"
+)
+file(GLOB LIBMPEGTS_HDRS
+  "${LIBMPEGTS_INCLUDE_DIR}/*.h"
+)
+
+add_library(mpegts SHARED ${LIBMPEGTS_SRCS})
+
+set_target_properties(mpegts 
+  PROPERTIES 
+    PUBLIC_HEADER "${LIBMPEGTS_HDRS}"
+)
+
+target_include_directories(mpegts 
+  PUBLIC 
+    ${LIBMPEGTS_INCLUDE_DIR}
+    $<BUILD_INTERFACE:${LIBMPEGTS_INCLUDE_DIR}>
+    $<INSTALL_INTERFACE:${INSTALL_HEADER_INCLUDE_DIR}/mpegts>
 )
 
 # import rtmp

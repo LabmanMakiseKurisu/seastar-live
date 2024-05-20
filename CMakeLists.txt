@@ -59,4 +59,6 @@ target_link_libraries (server
     flv
     rtmp
     fmp4
+    mov
+    mpegts
 )

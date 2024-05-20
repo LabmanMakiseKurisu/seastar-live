@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 11:43:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-11 12:03:00
+ * @LastEditTime: 2024-05-20 15:31:40
  * @FilePath: /Amadeus/src/app/global_setting.hh
  * @Description:
  */
@@ -45,6 +45,19 @@ class global_settings {
     element<sstring> http_listen_address =
         element<sstring>("http-listen", "0.0.0.0:10002", "HTTP RESTFul API Server listen address");
 
+    element<bool> hls_ts_enabled =
+        element<bool>("hls-ts-enabled", false, true, "Enable HLS-TS");
+    element<float> hls_ts_fragment_duration =
+        element<float>("hls-ts-fragment-duration", 1.f, "Duration(s) of each HLS-TS fragment");
+    element<float> hls_ts_fragment_file_delete_delay =
+        element<float>("hls-ts-fragment-file-delete-delay", 30.f, "Delay(s) to delete HLS-TS fragment file directory");
+    element<float> hls_ts_playlist_min_duration =
+        element<float>("hls-ts-playlist-min-duration", 6.f, "Minimum duration(s) for HLS-TS playlist");
+    element<bool> hls_ts_save_timestamp_playlist =
+        element<bool>("hls-ts-save-timestamp-playlist", false, "Write HLS-TS {Unix-timestamp}.m3u8");
+    element<sstring> hls_ts_base_directory =
+        element<sstring>("hls-ts-base-dir", "/root/workspace/ts", "HLS-TS base directory");
+    element<int> hls_ts_max_fragments = element<int>("hls-ts-max-fragments", 512, "Max fragmentes for HLS-TS playlist");
  public:
     static global_settings global;
     static void setup_app_options(app_template &app);
@@ -66,8 +79,6 @@ class global_settings {
 
     global_settings &operator=(const global_settings &gs);
     global_settings &operator=(global_settings &&gs);
-    // bool operator==(const global_settings & gs) const;
-    // bool operator!=(const global_settings & gs) const;
 
  protected:
     // 设置程序的boost命令行选项

@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-05-11 15:03:46
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-11 15:10:12
+ * @LastEditTime: 2024-05-20 18:16:43
  * @FilePath: /Amadeus/src/server/http1/path.cc
  * @Description:
  */
@@ -15,7 +15,8 @@
 namespace amadeus {
 namespace http1 {
 namespace path {
-using namespace seastar;
+using namespace seastar::httpd;
+
 const httpd::path_description play_stream_by_get(
     "/play",                    // 路径强匹配子串
     httpd::operation_type::GET, // HTTP 方法
@@ -27,7 +28,15 @@ const httpd::path_description play_stream_by_get(
 },
     {"format"} // 必需的查询参数
 );
-;
+
+const path_description play_hls_stream("/hls",GET,"play_hls_stream",
+{{"app_name", path_description::url_component_type::PARAM}
+,{"stream_name", path_description::url_component_type::PARAM}
+,{"filename", path_description::url_component_type::PARAM}},{});
+
+const path_description dowload_file("/file",GET,"dowload_file",
+{{"file_name", path_description::url_component_type::PARAM}},{});
+
 } // namespace path
 } // namespace http1
 } // namespace amadeus

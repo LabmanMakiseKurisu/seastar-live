@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-24 15:23:57
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-04-24 17:21:34
+ * @LastEditTime: 2024-05-20 16:45:51
  * @FilePath: /Amadeus/src/frame/media_base.hh
  * @Description:
  */
@@ -24,7 +24,7 @@ class media_base {
     bool _is_keyframe = false; // 是否为关键帧
 
     uint64_t _dts = 0;               // 解码时间戳
-    temporary_buffer<uint8_t> _data; // 本帧数据区
+    temporary_buffer<uint8_t> _data; // 本帧数据区,AVCC形式的NALU或者AAC raw data
 
  public:
     media_base() = default;

@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 13:40:07
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-11 12:03:28
+ * @LastEditTime: 2024-05-20 15:31:57
  * @FilePath: /Amadeus/src/app/global_setting.cc
  * @Description:
  */
@@ -65,6 +65,13 @@ global_settings::Register() {
     Register_element(&frame_trace_enabled);
     Register_element(&auto_stop_publish_mode);
     Register_element(&http_listen_address);
+    Register_element(&hls_ts_enabled);
+    Register_element(&hls_ts_fragment_duration);
+    Register_element(&hls_ts_fragment_file_delete_delay);
+    Register_element(&hls_ts_playlist_min_duration);
+    Register_element(&hls_ts_save_timestamp_playlist);
+    Register_element(&hls_ts_base_directory);
+    Register_element(&hls_ts_max_fragments);
 }
 
 void
