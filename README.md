@@ -2,30 +2,27 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 11:43:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-14 14:16:41
+ * @LastEditTime: 2024-05-22 16:21:54
  * @FilePath: /Amadeus/README.md
  * @Description: 
 -->
 # 项目名称
 自研流媒体服务器Amadeus
 
-# 待开发的功能
+# 功能
 - 推流协议支持
-    - RTMP-flv推流(done)
-    - WebRTC推流（后期需求）
-    - RTSP推流（后期需求）
+    - RTMP-flv推流 (done)
+    - WebRTC推流（TODO）
+    - RTSP推流（TODO）
 - 拉流协议支持
-    - RTMP-flv拉流(done)
-    - HTTP-flv拉流(done)
-    - HLSv3(.ts)/v7(.fmp4)拉流（TODO）
-    - WebRTC拉流(done)（后期需求）
-    - RTSP-mp4拉流（后期需求）
+    - RTMP-flv拉流 (done)
+    - HTTP-flv拉流 (done)
+    - HLSv3(.ts)拉流 (done)
+    - WebRTC拉流(done)（TODO）
+    - RTSP拉流（TODO）
 - 格式互转
-    - 切片生产HLSv3(.ts)/v7(.fmp4)（TODO）
-- Swagger API
-    - 查询信息
-    - 转发：本服务作为客户端向其他服务器推流
-    - 回源：本服务作为客户端向其他服务器拉流
+    - 切片生产HLSv3(.ts) (done)
+
 
 # 环境需求
 - Ubuntu 22.04 LTS (necessary)
