@@ -278,16 +278,6 @@ transmition::make_valid_publisher(
 
     auto pub = make_publisher(prot, fmt, app, stream, internal_url, args, address);
     return make_ready_future<publisher_ptr>(pub);
-    // if (!_host_server) return make_ready_future<publisher_ptr>(pub);
-
-    // return _host_server->validate(pub.get())
-    //     .then([pub] {
-    //         return make_ready_future<publisher_ptr>(pub);
-    //     })
-    //     .handle_exception([this](auto e) {
-    //         l.warn("failed to publish: {}", e);
-    //         return make_exception_future<publisher_ptr>(std::move(e));
-    //     });
 }
 
 future<hls_player_ptr>
@@ -621,10 +611,6 @@ transmition::schedule_hls_players_if_needs(
 future<std::vector<hls_player_ptr>>
 transmition::schedule_hls_players(
     publisher_ptr pub, const sstring &internal_url, const arguments_t &args, media_type_t t, hls::version_t v) {
-    // settings_t settings;
-    // settings += global_settings::global.to_settings();
-    // settings += settings_for(pub->app(), pub->stream());
-    // settings += additional_settings;
 
     return do_with(std::vector<hls_player_ptr>(), [pub, internal_url, args, t, v, this](auto &plyrs) {
         auto f = make_ready_future<>();
@@ -824,19 +810,6 @@ transmition::make_publisher(
 
     publisher_ptr pub = nullptr;
     switch (prot) {
-        // case protocol_t::TCP:
-        //     pub = std::make_shared<tcp::session::svr::publish_session>(
-        //         app, stream, internal_url, args, address, ownership_t::user, fmt);
-        //     break;
-        // case protocol_t::HTTP1:
-        //     pub = std::make_shared<http1::session::svr::publish_session>(
-        //         app, stream, internal_url, args, address, ownership_t::user, fmt);
-        //     break;
-        // case protocol_t::HTTP2:
-        // case protocol_t::HTTP3:
-        //     pub = std::make_shared<http1::session::svr::publish_session>(
-        //         app, stream, internal_url, args, address, ownership_t::user, fmt);
-        //     break;
         case protocol_t::RTMP:
             pub = std::make_shared<rtmp::session::svr::publish_session>(
                 app, stream, internal_url, args, address, ownership_t::user, fmt);
@@ -844,7 +817,6 @@ transmition::make_publisher(
         default: return nullptr;
     }
 
-    // if (pub) pub->set_settings(settings_for(app, stream));
     pub->set_settings();
     return pub;
 }
@@ -888,19 +860,10 @@ transmition::make_player(
 
     player_ptr plyr = nullptr;
     switch (prot) {
-        // case protocol_t::TCP:
-        //     plyr = std::make_shared<tcp::session::svr::play_session>(
-        //         pub, id, app, stream, internal_url, args, address, ownership_t::user, fmt, media_type);
-        //     break;
         case protocol_t::HTTP1:
             plyr = std::make_shared<http1::session::svr::play_session>(
                 pub, id, app, stream, internal_url, args, address, ownership_t::user, fmt, media_type);
             break;
-        // case protocol_t::HTTP2:
-        // case protocol_t::HTTP3:
-        //     plyr = std::make_shared<http1::session::svr::play_session>(
-        //         pub, id, app, stream, internal_url, args, address, ownership_t::user, fmt, media_type);
-        //     break;
         case protocol_t::RTMP:
             plyr = std::make_shared<rtmp::session::svr::play_session>(
                 pub, id, app, stream, internal_url, args, address, ownership_t::user, fmt, media_type);
@@ -908,7 +871,6 @@ transmition::make_player(
         default: return nullptr;
     }
 
-    // if (plyr) plyr->set_settings(settings_for(app, stream));
     if (plyr) plyr->set_settings();
     return plyr;
 }

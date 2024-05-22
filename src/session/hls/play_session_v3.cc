@@ -28,7 +28,6 @@ on_free(void *param, void *buffer) {
     free(buffer);
 }
 
-
 play_session_v3::play_session_v3(
     publisher_ptr pub, const sstring &internal_url, const arguments_t &args, media_type_t media_type)
 : play_session_v3(pub, pub->app(), pub->stream(), internal_url, args, media_type) {}
@@ -385,17 +384,6 @@ play_session_v3::deep_copy_mpeg4_hevc(mpeg4_hevc_t *dst, const mpeg4_hevc_t *src
     return 0;
 }
 
-/*
-    auto stream = frame->is_video() ? _video_stream : _audio_stream;
-    if (!stream) throw std::runtime_error(fmt::format("no {} stream", frame->is_video() ? "video" : "audio"));
-
-    auto ts_frame = std::make_shared<mpeg_frame>();
-    ts_frame->stream_id = stream->stream_id;
-    ts_frame->raw_frame = frame;
-    ts_frame->data = make_frame_data();
-
-    return ts_frame;
-*/
 
 play_session_v3::mpeg_frame_ptr
 play_session_v3::make_ts_frame(media_ptr frame) {
@@ -459,39 +447,6 @@ play_session_v3::to_hevc_annexb(const mpeg4_hevc_t *config, uint8_t *data, size_
     buf.trim(ret);
 
     return buf;
-}
-
-temporary_buffer<uint8_t>
-play_session_v3::avcc_to_annexb(const uint8_t *avcc, size_t len) {
-    seastar::temporary_buffer<uint8_t> buf(len + 1024); // 预分配足够的空间
-    size_t pos = 0;
-    size_t buf_pos = 0;
-
-    while (pos + 4 <= len) {
-        // 读取 NALU 大小（4 字节大端序）
-        uint32_t nalu_size = (avcc[pos] << 24) | (avcc[pos + 1] << 16) | (avcc[pos + 2] << 8) | avcc[pos + 3];
-        pos += 4;
-
-        // 检查是否越界
-        if (pos + nalu_size > len) {
-            std::cerr << "Invalid NALU size." << std::endl;
-            break;
-        }
-
-        buf.get_write()[buf_pos++] = 0x00;
-        buf.get_write()[buf_pos++] = 0x00;
-        buf.get_write()[buf_pos++] = 0x00;
-        buf.get_write()[buf_pos++] = 0x01;
-
-        std::copy_n(avcc + pos, nalu_size, buf.get_write() + buf_pos);
-        // std::memcpy(buf.get_write() + buf_pos, avcc + pos, nalu_size);
-        buf_pos += nalu_size;
-        pos += nalu_size;
-    }
-
-    // 需要缩小缓冲区以适应实际大小
-    seastar::temporary_buffer<uint8_t> result(buf.get(), buf_pos);
-    return result;
 }
 
 } // namespace session

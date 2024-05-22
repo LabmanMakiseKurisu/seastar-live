@@ -99,7 +99,6 @@ class play_session_v3 : public play_session {
     temporary_buffer<uint8_t> to_aac_adts(const mpeg4_aac_t *config, uint8_t *data, size_t len);
     temporary_buffer<uint8_t> to_h264_annexb(const mpeg4_avc_t *config, uint8_t *data, size_t len);
     temporary_buffer<uint8_t> to_hevc_annexb(const mpeg4_hevc_t *config, uint8_t *data, size_t len);
-    temporary_buffer<uint8_t> avcc_to_annexb(const uint8_t *data, size_t len);
  private:
     static int on_data(void *param, const void *data, size_t bytes);
     static int deep_copy_mpeg4_avc(mpeg4_avc_t *dst, const mpeg4_avc_t *src);
