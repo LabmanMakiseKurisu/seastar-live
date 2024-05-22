@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 11:43:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-22 16:21:54
+ * @LastEditTime: 2024-05-22 16:24:58
  * @FilePath: /Amadeus/README.md
  * @Description: 
 -->
@@ -32,7 +32,7 @@
 sudo apt update
 ```
 ```
-sudo ./scripts/install-dependencies.sh
+sudo ./install-dependencies.sh
 ```
 
 # 构建和运行
