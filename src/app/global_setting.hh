@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 11:43:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-20 15:31:40
+ * @LastEditTime: 2024-05-20 19:06:41
  * @FilePath: /Amadeus/src/app/global_setting.hh
  * @Description:
  */
@@ -46,7 +46,7 @@ class global_settings {
         element<sstring>("http-listen", "0.0.0.0:10002", "HTTP RESTFul API Server listen address");
 
     element<bool> hls_ts_enabled =
-        element<bool>("hls-ts-enabled", false, true, "Enable HLS-TS");
+        element<bool>("hls-ts-enabled", true, true, "Enable HLS-TS");
     element<float> hls_ts_fragment_duration =
         element<float>("hls-ts-fragment-duration", 1.f, "Duration(s) of each HLS-TS fragment");
     element<float> hls_ts_fragment_file_delete_delay =
@@ -56,7 +56,7 @@ class global_settings {
     element<bool> hls_ts_save_timestamp_playlist =
         element<bool>("hls-ts-save-timestamp-playlist", false, "Write HLS-TS {Unix-timestamp}.m3u8");
     element<sstring> hls_ts_base_directory =
-        element<sstring>("hls-ts-base-dir", "/root/workspace/ts", "HLS-TS base directory");
+        element<sstring>("hls-ts-base-dir", "/home/amadeus/ts", "HLS-TS base directory");
     element<int> hls_ts_max_fragments = element<int>("hls-ts-max-fragments", 512, "Max fragmentes for HLS-TS playlist");
  public:
     static global_settings global;

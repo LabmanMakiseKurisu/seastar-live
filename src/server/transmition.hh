@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-23 14:51:50
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-10 18:21:30
+ * @LastEditTime: 2024-05-20 18:41:13
  * @FilePath: /Amadeus/src/server/transmition.hh
  * @Description:
  */
@@ -21,6 +21,7 @@
 #include "session/rtmp/play_session.hh"
 #include "session/rtmp/publish_session.hh"
 #include "session/http1/play_session.hh"
+#include "session/hls/play_session.hh"
 
 namespace amadeus {
 namespace server {
@@ -285,7 +286,45 @@ class transmition : public session::lifecycle {
         protocol_t prot = protocol_t::none,
         std::function<bool(rtmp_player_ptr)> condition = nullptr) const;
 
+    size_t get_hls_players_size(
+        const sstring &app,
+        const sstring &stream,
+        media_type_t media_type = media_type_t::all,
+        hls::version_t v = hls::version_t::all,
+        std::function<bool(hls_player_ptr)> condition = nullptr) const;
+    hls_player_ptr find_any_hls_player(
+        const sstring &app,
+        const sstring &stream,
+        media_type_t media_type = media_type_t::all,
+        hls::version_t v = hls::version_t::all,
+        std::function<bool(hls_player_ptr)> condition = nullptr) const;
+    std::vector<hls_player_ptr> find_hls_players(
+        const sstring &app,
+        const sstring &stream,
+        media_type_t media_type = media_type_t::all,
+        hls::version_t v = hls::version_t::all,
+        std::function<bool(hls_player_ptr)> condition = nullptr) const;
+        
+    // HLS
+    future<std::vector<hls_player_ptr>> schedule_hls_players_if_needs(
+        publisher_ptr pub,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        media_type_t t = media_type_t::all);
+
+    future<std::vector<hls_player_ptr>> schedule_hls_players(
+        publisher_ptr pub,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        media_type_t t = media_type_t::all,
+        hls::version_t v = hls::version_t::all);
  protected:
+    future<hls_player_ptr> _schedule_hls_player(
+        publisher_ptr pub,
+        const sstring &internal_url = "",
+        const arguments_t &args = {},
+        media_type_t t = media_type_t::all,
+        hls::version_t v = hls::version_t::all);
     future<> validate(
         type_t type,
         protocol_t prot,

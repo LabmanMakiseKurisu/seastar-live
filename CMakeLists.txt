@@ -50,15 +50,18 @@ endif()
 target_include_directories (server 
   PUBLIC 
     ${LIBFLV_INCLUDE_DIR}
+    ${LIBMOV_INCLUDE_DIR}
+    ${LIBMPEGTS_INCLUDE_DIR}
     ${LIBRTMP_INCLUDE_DIR}
     ${LIBFMP4_INCLUDES_DIR}
+
 )
 
 target_link_libraries (server 
   PUBLIC 
     flv
-    rtmp
-    fmp4
     mov
     mpegts
+    rtmp
+    fmp4
 )

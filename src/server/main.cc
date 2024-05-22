@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-17 15:59:26
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-11 15:07:08
+ * @LastEditTime: 2024-05-22 15:41:20
  * @FilePath: /Amadeus/src/server/main.cc
  * @Description:
  */
@@ -38,6 +38,7 @@ namespace bpo = boost::program_options;
 void
 set_routes(httpd::routes &r, std::shared_ptr<server::transmition> trans) {
     http1::path::play_stream_by_get.set(r, new http1::route::play_stream_route_handler(trans));
+    http1::path::play_hls_stream.set(r, new http1::route::hls_file_route_handler(trans));
 }
 
 void

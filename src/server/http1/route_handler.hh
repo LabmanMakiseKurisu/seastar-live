@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-05-10 16:59:40
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-10 17:24:30
+ * @LastEditTime: 2024-05-22 15:06:29
  * @FilePath: /Amadeus/src/server/http1/route_handler.hh
  * @Description: 
  */
@@ -63,6 +63,20 @@ class play_stream_route_handler : public route_handler {
 
     virtual future<std::unique_ptr<http::reply>>
     handle(const sstring &path, std::unique_ptr<http::request> req, std::unique_ptr<http::reply> rep) override;
+};
+
+class hls_file_route_handler : public route_handler {
+ public:
+    hls_file_route_handler(transmition_ptr trans)
+    : route_handler(trans) {
+        _ts_directory = global_settings::global.hls_ts_base_directory();
+    }
+
+    future<std::unique_ptr<http::reply>>
+    handle(const sstring &path, std::unique_ptr<http::request> req, std::unique_ptr<http::reply> rep) override;
+
+ private:
+    sstring _ts_directory;
 };
 
 } // namespace route

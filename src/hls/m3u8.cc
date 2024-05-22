@@ -152,16 +152,22 @@ m3u8_writer_v3::make_content(const playlist_t &playlist, const sstring &end) {
 
     std::string content;
 
-    auto media_sequence = playlist.front()->id;
-
+    int64_t sequence = 0;
     int64_t max_duration = 0;
-    for (auto &frag : playlist) max_duration = std::max(max_duration, frag->duration);
+    for (auto &item : playlist) {
+        if (item->is_header) {
+            continue;
+        } else if (sequence == 0) {
+            sequence = item->id;
+        }
+        max_duration = std::max(max_duration, item->duration);
+    }
 
     content.append("#EXTM3U\n");
     content.append("#EXT-X-VERSION:3\n");
     content.append("#EXT-X-START:TIME-OFFSET=0\n");
-    content.append("#EXT-X-MEDIA-SEQUENCE:" + std::to_string(media_sequence) + '\n');
-    content.append("#EXT-X-TARGETDURATION:" + std::to_string(static_cast<int>(max_duration / 1000.f + 0.5)) + '\n');
+    content.append("#EXT-X-MEDIA-SEQUENCE:" + std::to_string(sequence % 100000000) + '\n');
+    content.append("#EXT-X-TARGETDURATION:" + std::to_string(static_cast<int64_t>(ceil(max_duration / 1000.f))) + '\n');
 
     for (size_t i = 0; i < playlist.size(); i++) {
         auto &item = playlist[i];

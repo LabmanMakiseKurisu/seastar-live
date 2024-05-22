@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-05-11 15:03:46
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-20 18:16:43
+ * @LastEditTime: 2024-05-22 15:05:17
  * @FilePath: /Amadeus/src/server/http1/path.cc
  * @Description:
  */
@@ -34,8 +34,6 @@ const path_description play_hls_stream("/hls",GET,"play_hls_stream",
 ,{"stream_name", path_description::url_component_type::PARAM}
 ,{"filename", path_description::url_component_type::PARAM}},{});
 
-const path_description dowload_file("/file",GET,"dowload_file",
-{{"file_name", path_description::url_component_type::PARAM}},{});
 
 } // namespace path
 } // namespace http1

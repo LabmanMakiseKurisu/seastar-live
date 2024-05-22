@@ -8,6 +8,7 @@
 
 #include "session/log.hh"
 #include "session/publish_session.hh"
+#include "session/rtmp/publish_session.hh"
 
 namespace amadeus {
 namespace hls {
@@ -59,9 +60,29 @@ play_session::to_string() const {
 }
 
 void
-play_session::on_begin() {
-    session_ns::play_session::on_begin();
+play_session::subscribe() {
+    auto _rtmp_pub = std::dynamic_pointer_cast<rtmp::session::publish_session>(_pub);
+    if (_rtmp_pub && _rtmp_pub->protocol() == protocol_t::RTMP) {
+        auto self = std::dynamic_pointer_cast<amadeus::session::subscriber>(shared_from_this());
+        _delay = _rtmp_pub->delay();
+        _rtmp_pub->add_rtmp_subscriber(self);
+    } else {
+        session_ns::play_session::subscribe();
+    }
+}
 
+void
+play_session::on_begin() {
+    //session_ns::play_session::on_begin();
+    session_impl::on_begin();
+
+    _delay = 0;
+
+    _flv_queue.clear();
+
+    //if (_pub) _meta = _pub->copy_meta();
+
+    subscribe();
     create_tracers();
 }
 
@@ -151,7 +172,7 @@ play_session::do_write() {
             if (_canceled) {
                 l.info("is canceled");
             } else if (_timeout) {
-                l.warn("is timeout");
+                l.warn("hls session is timeout");
             } else if (_failed) {
                 l.warn("is failed for {}", current_status());
             } else {

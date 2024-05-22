@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-22 18:15:16
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-13 15:46:51
+ * @LastEditTime: 2024-05-20 19:23:55
  * @FilePath: /Amadeus/src/session/publish_session.cc
  * @Description:
  */
@@ -107,7 +107,10 @@ publish_session::add_subscriber(subscriber_ptr sub) {
     auto it = std::find_if(_subscribers.begin(), _subscribers.end(), [sub](auto &item) {
         return item->sub == sub;
     });
-    if (it == _subscribers.end()) _subscribers.push_back(std::make_shared<subscriber_item>(sub, false));
+    if (it == _subscribers.end()) {
+        //l.info("add subscriber: {}", (void*)sub.get());
+      _subscribers.push_back(std::make_shared<subscriber_item>(sub, false));  
+    } 
 }
 
 void

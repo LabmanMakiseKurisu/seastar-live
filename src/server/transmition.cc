@@ -13,6 +13,9 @@
 #include "server/log.hh"
 #include "util/CxxUrl.hh"
 #include "util/util.hh"
+#include "transmition.hh"
+#include "session/hls/play_session_v3.hh"
+#include "balancer/load_balancer.hh"
 
 namespace amadeus {
 namespace server {
@@ -287,6 +290,24 @@ transmition::make_valid_publisher(
     //     });
 }
 
+future<hls_player_ptr>
+transmition::_schedule_hls_player(
+    publisher_ptr pub, const sstring &internal_url, const arguments_t &args, media_type_t t, hls::version_t v) {
+    return smp::submit_to(load_balancer::global.next_cpu(), [pub, internal_url, args, t, v, this] {
+        hls_player_ptr plyr;
+
+        if (v == hls::version_t::v3) {
+            plyr = std::make_shared<hls::session::play_session_v3>(pub, internal_url, args, t);
+        } 
+        add_player(plyr);
+
+        plyr->set_settings();
+        plyr->start();
+
+        return make_ready_future<hls_player_ptr>(plyr);
+    });
+}
+
 future<>
 transmition::validate(
     type_t type,
@@ -518,6 +539,107 @@ transmition::find_rtmp_players(
     protocol_t prot,
     std::function<bool(rtmp_player_ptr)> condition) const {
     return _players.find_all<rtmp::session::play_session>(app, stream, os, fmt, prot, std::move(condition));
+}
+
+size_t
+transmition::get_hls_players_size(
+    const sstring &app,
+    const sstring &stream,
+    media_type_t media_type,
+    hls::version_t version,
+    std::function<bool(hls_player_ptr)> condition) const {
+    return _players.size<hls::session::play_session>(
+        app,
+        stream,
+        ownership_t::invisible,
+        format_t::HLS,
+        protocol_t::HTTP,
+        [media_type, version, condition = std::move(condition)](auto plyr) {
+            if ((plyr->media_type() & media_type) == media_type_t::none) return false;
+            if ((plyr->version() & version) == hls::version_t::none) return false;
+            if (condition) return condition(plyr);
+            return true;
+        });
+}
+
+hls_player_ptr
+transmition::find_any_hls_player(
+    const sstring &app,
+    const sstring &stream,
+    media_type_t media_type,
+    hls::version_t version,
+    std::function<bool(hls_player_ptr)> condition) const {
+    return _players.find_any<hls::session::play_session>(
+        app,
+        stream,
+        ownership_t::invisible,
+        format_t::HLS,
+        protocol_t::HTTP,
+        [media_type, version, condition = std::move(condition)](auto plyr) {
+            if ((plyr->media_type() & media_type) == media_type_t::none) return false;
+            if ((plyr->version() & version) == hls::version_t::none) return false;
+            if (condition) return condition(plyr);
+            return true;
+        });
+}
+
+std::vector<hls_player_ptr>
+transmition::find_hls_players(
+    const sstring &app,
+    const sstring &stream,
+    media_type_t media_type,
+    hls::version_t version,
+    std::function<bool(hls_player_ptr)> condition) const {
+    return _players.find_all<hls::session::play_session>(
+        app,
+        stream,
+        ownership_t::invisible,
+        format_t::HLS,
+        protocol_t::HTTP,
+        [media_type, version, condition = std::move(condition)](auto plyr) {
+            if ((plyr->media_type() & media_type) == media_type_t::none) return false;
+            if ((plyr->version() & version) == hls::version_t::none) return false;
+            if (condition) return condition(plyr);
+            return true;
+        });
+}
+
+future<std::vector<hls_player_ptr>>
+transmition::schedule_hls_players_if_needs(
+    publisher_ptr pub, const sstring &internal_url, const arguments_t &args, media_type_t t) {
+    // auto settings = global_settings::global.to_settings();
+    // settings += settings_for(pub->app(), pub->stream());
+
+    auto v = hls::version_t::none;
+    if (global_settings::global.hls_ts_enabled()) { v = v | hls::version_t::v3; }
+
+    if (v == hls::version_t::none) return make_ready_future<std::vector<hls_player_ptr>>();
+
+    return schedule_hls_players(pub, internal_url, args, t, v);
+}
+
+future<std::vector<hls_player_ptr>>
+transmition::schedule_hls_players(
+    publisher_ptr pub, const sstring &internal_url, const arguments_t &args, media_type_t t, hls::version_t v) {
+    // settings_t settings;
+    // settings += global_settings::global.to_settings();
+    // settings += settings_for(pub->app(), pub->stream());
+    // settings += additional_settings;
+
+    return do_with(std::vector<hls_player_ptr>(), [pub, internal_url, args, t, v, this](auto &plyrs) {
+        auto f = make_ready_future<>();
+        if ((v & hls::version_t::v3) != hls::version_t::none) {
+            f = f.then([&plyrs, pub, internal_url, args, t, v, this] {
+                return _schedule_hls_player(pub, internal_url, args, t, hls::version_t::v3)
+                    .then([&plyrs](auto plyr) {
+                        plyrs.push_back(plyr);
+                    });
+            });
+        }
+        return f.then([&plyrs] {
+            return make_ready_future<std::vector<hls_player_ptr>>(std::move(plyrs));
+        });
+    });
 }
 
 const std::vector<player_ptr> &
@@ -793,7 +915,10 @@ transmition::make_player(
 
 void
 transmition::on_add_publisher(publisher_ptr pub) {
-    // schedule_hls_players_if_needs(pub, pub->internal_url(), pub->args(), media_type_t::all);
+    (void)seastar::async([pub, this] {
+        auto f = schedule_hls_players_if_needs(pub, pub->internal_url(), pub->args(), media_type_t::all);
+        f.get();
+    });
 }
 
 void

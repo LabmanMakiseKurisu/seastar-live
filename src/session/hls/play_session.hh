@@ -52,6 +52,8 @@ class play_session : public session_ns::play_session {
 
     virtual sstring to_string() const;
 
+    virtual void subscribe() override;
+
  protected:
     future<> init_directory(const fs::path &directory);
 

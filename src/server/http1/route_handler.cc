@@ -24,6 +24,14 @@ namespace http1 {
 namespace route {
 
 static inline future<std::unique_ptr<http::reply>>
+finally_accessable(std::unique_ptr<http::reply> rep) {
+    rep->_headers["Access-Control-Allow-Origin"] = "*";
+    rep->_headers["Access-Control-Allow-Methods"] = "*";
+    rep->_headers["Access-Control-Allow-Headers"] = "*";
+    return make_ready_future<std::unique_ptr<http::reply>>(std::move(rep));
+}
+
+static inline future<std::unique_ptr<http::reply>>
 finally(
     const sstring &method,
     const sstring &url,
@@ -308,6 +316,38 @@ play_stream_route_handler::handle(
                    : media_type_t::all;
 
     return play_stream(std::move(req), std::move(rep), app, stream, fmt, media);
+}
+
+future<std::unique_ptr<http::reply>>
+hls_file_route_handler::handle(
+    const sstring &path, std::unique_ptr<http::request> req, std::unique_ptr<http::reply> rep) {
+    auto app = req->param["app_name"];
+    if (app.empty()) return no_app_name_provided(std::move(req), std::move(rep));
+
+    auto stream = req->param["stream_name"];
+    if (stream.empty()) return no_stream_name_provided(std::move(req), std::move(rep));
+
+    auto filename = req->param["filename"];
+    if (filename.empty()) return no_file_name_provided(std::move(req), std::move(rep));
+
+    auto fn = std::filesystem::path(filename);
+    bool is_m3u8_file = fn.extension() == ".m3u8";
+    auto is_ts_request =
+        util::is_true(req->get_query_param("hls_ts")) || fn.extension() == ".ts" || fn.stem() == "ts_index";
+
+    filename = is_m3u8_file && is_ts_request ? "ts_index.m3u8" : filename;
+
+    auto directory = _ts_directory;
+    auto filepath = std::filesystem::path(fmt::format("{}/{}/{}/{}", directory, app, stream, filename));
+
+    auto req_ptr = std::move(req);
+    auto rep_ptr = std::move(rep);
+    
+    return do_with(std::move(req_ptr), std::move(rep_ptr), [filepath, this](auto &req, auto &rep) {
+        return read_file(filepath, std::move(req), std::move(rep)).then([](std::unique_ptr<http::reply> rep){
+            return finally_accessable(std::move(rep));
+        });
+    });
 }
 
 } // namespace route
