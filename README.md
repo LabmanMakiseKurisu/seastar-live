@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-04-19 11:43:06
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-22 16:42:08
+ * @LastEditTime: 2024-05-22 16:44:17
  * @FilePath: /Amadeus/README.md
  * @Description: 
 -->
@@ -27,32 +27,18 @@
 # 环境需求
 - Ubuntu 22.04 LTS (necessary)
 
-# 依赖安装
-```
-sudo apt update
-```
-```
-sudo ./install-dependencies.sh
-```
 
 # 构建和运行
 首先获取全部子模块
 ```
 git submodule update --init --recursive
 ``` 
-安装seastar (not necessary)
+之后安装环境依赖
 ```
-cd 3rd/seastar
-mkdir -p build && cd build
-./configure.py --mode=release --prefix=/usr/local
-ninja -C build/release install
+sudo apt update
 ```
-安装nlohmann_json (not necessary)
 ```
-cd 3rd/nlohmann_json
-mkdir -p build && cd build
-cmake ..
-make install
+sudo ./install-dependencies.sh
 ```
 最后构建和编译
 ```
