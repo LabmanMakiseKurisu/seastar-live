@@ -32,11 +32,9 @@ enum class type_t : unsigned int {
 // 封装类型
 enum class format_t : unsigned int {
     UNKNOWN = 0,
-    BMT,
     FLV,
     HLS,
     TS,
-
     ignored
 };
 
@@ -148,13 +146,8 @@ protocol_to_string(protocol_t prot) {
 static inline format_t
 protocol_to_default_format(protocol_t prot) {
     switch (prot) {
-        case protocol_t::TCP: return format_t::BMT;
         case protocol_t::HTTP1: return format_t::FLV;
-        case protocol_t::HTTP2: return format_t::BMT;
-        case protocol_t::HTTP3: return format_t::BMT;
         case protocol_t::RTMP: return format_t::FLV;
-        case protocol_t::SRT: return format_t::BMT;
-        case protocol_t::FILE: return format_t::BMT;
         default: return format_t::UNKNOWN;
     }
 }
@@ -162,13 +155,10 @@ protocol_to_default_format(protocol_t prot) {
 static inline const sstring
 protocol_to_schema(protocol_t prot) {
     switch (prot) {
-        case protocol_t::TCP: return "bmt";
         case protocol_t::HTTP1: return "http";
         case protocol_t::HTTP2: return "https";
         case protocol_t::HTTP3: return "http3";
         case protocol_t::RTMP: return "rtmp";
-        case protocol_t::SRT: return "srt";
-        case protocol_t::FILE: return "file";
         default: return "";
     }
 }
@@ -199,8 +189,6 @@ session_type_to_string(type_t type, ownership_t owner) {
 static inline protocol_t
 schema_to_protocol(const sstring &schema) {
     auto s = boost::algorithm::to_lower_copy(schema);
-
-    if (s == "bmt") return protocol_t::TCP;
     if (s == "http") return protocol_t::HTTP1;
     if (s == "https") return protocol_t::HTTP2;
     if (s == "http3") return protocol_t::HTTP3;
@@ -250,20 +238,18 @@ convert_to_hls_protocol(const T &_v) {
 static inline const sstring
 format_to_string(format_t fmt) {
     switch (fmt) {
-        case format_t::BMT: return "BMT";
         case format_t::FLV: return "FLV";
         case format_t::HLS: return "HLS";
-        default: return "BMT";
+        default: return "unknown";
     }
 }
 
 static inline const sstring
 format_to_schema(format_t fmt) {
     switch (fmt) {
-        case format_t::BMT: return "bmt";
         case format_t::FLV: return "flv";
         case format_t::HLS: return "hls";
-        default: return "bmt";
+        default: return "unknown";
     }
 }
 
@@ -276,7 +262,6 @@ format_to_extension(format_t fmt) {
 static inline const sstring
 format_to_mime_type(format_t fmt) {
     switch (fmt) {
-        case format_t::BMT: return "application/octet-stream";
         case format_t::HLS: return "application/x-mpegURL";
         case format_t::FLV: return "flv-application/octet-stream";
         default: return "application/octet-stream";
@@ -289,24 +274,22 @@ template <class T>
 static inline format_t
 convert_to_format(const T &_v) {
     switch (_v) {
-        case T::BMT: return format_t::BMT;
         case T::FLV: return format_t::FLV;
         case T::HLS: return format_t::HLS;
-        default: return format_t::BMT;
+        default: return format_t::UNKNOWN;
     }
 }
 
 static inline format_t
 str2format(const sstring &str) {
-    static const sstring arr[] = {"bmt", "flv", "hls", "ignored"};
+    static const sstring arr[] = {"flv", "hls", "ignored"};
     int i;
     for (i = 0; i < 4; i++) {
         if (arr[i] == str) { break; }
     }
     switch (i) {
-        case 0: return format_t::BMT;
-        case 1: return format_t::FLV;
-        case 2: return format_t::HLS;
+        case 0: return format_t::FLV;
+        case 1: return format_t::HLS;
         default: return format_t::UNKNOWN;
     }
 }
@@ -315,11 +298,10 @@ template <class T>
 static inline format_t
 convert_to_format_lower(const T &_v) {
     switch (_v) {
-        case T::bmt: return format_t::BMT;
         case T::flv: return format_t::FLV;
         case T::hls: return format_t::HLS;
         case T::ignored: return format_t::ignored;
-        default: return format_t::BMT;
+        default: return format_t::UNKNOWN;
     }
 }
 
@@ -358,36 +340,6 @@ convert_to_ownership(const T &_v) {
     }
 }
 
-static inline bool
-validate_publish_protocol_and_format(protocol_t prot, format_t fmt) {
-    switch (prot) {
-        case protocol_t::TCP: return fmt == format_t::BMT;
-        case protocol_t::HTTP1: return fmt == format_t::BMT;
-        case protocol_t::HTTP2: return fmt == format_t::BMT;
-        case protocol_t::HTTP3: return fmt == format_t::BMT;
-        case protocol_t::RTMP: return fmt == format_t::FLV;
-        case protocol_t::SRT: return fmt == format_t::BMT;
-        case protocol_t::FILE: return fmt == format_t::BMT;
-        default: return "";
-    }
-}
-
-static inline bool
-validate_play_protocol_and_format(protocol_t prot, format_t fmt) {
-    switch (prot) {
-        case protocol_t::TCP: return fmt == format_t::BMT;
-        case protocol_t::HTTP1:
-            return fmt == format_t::BMT || fmt == format_t::FLV || fmt == format_t::HLS || fmt == format_t::TS;
-        case protocol_t::HTTP2:
-            return fmt == format_t::BMT || fmt == format_t::FLV || fmt == format_t::HLS || fmt == format_t::TS;
-        case protocol_t::HTTP3:
-            return fmt == format_t::BMT || fmt == format_t::FLV || fmt == format_t::HLS || fmt == format_t::TS;
-        case protocol_t::RTMP: return fmt == format_t::FLV;
-        case protocol_t::SRT: return fmt == format_t::BMT;
-        case protocol_t::FILE: return fmt == format_t::BMT;
-        default: return "";
-    }
-}
 
 inline media_type_t
 operator|(media_type_t a, media_type_t b) {

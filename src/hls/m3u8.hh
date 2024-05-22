@@ -2,7 +2,7 @@
  * @Author: Amadeus
  * @Date: 2024-05-20 14:05:14
  * @LastEditors: Amadeus
- * @LastEditTime: 2024-05-20 14:54:41
+ * @LastEditTime: 2024-05-22 16:46:07
  * @FilePath: /Amadeus/src/hls/m3u8.hh
  * @Description: 
  */
@@ -63,7 +63,6 @@ class m3u8_writer : public tracer {
     float _delete_delay_seconds = -1;
 };
 
-// we should export this module from libbmt
 class m3u8_writer_v3 : public m3u8_writer {
  public:
     m3u8_writer_v3(const sstring &directroy, bool save_timestamp, float delete_delay_seconds);
